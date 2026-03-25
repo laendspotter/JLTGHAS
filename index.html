@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#09090f">
+  <title>JLTG Stuttgart</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="toast"></div>
+
+  <div id="pg-landing" class="page">
+    <div class="landing-center">
+      <div class="landing-logo">
+        <div class="landing-eyebrow">Jet Lag: The Game</div>
+        <div class="landing-title bebas">JLTG<br>Stuttgart</div>
+        <div class="landing-subtitle">HIDE &amp; SEEK · VVS EDITION</div>
+      </div>
+      <div class="landing-btns">
+        <button class="btn btn-orange" id="btn-show-create">🕵️ Spiel erstellen</button>
+        <button class="btn btn-surface" id="btn-show-join">🔍 Spiel beitreten</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pg-create" class="page hidden" style="background:var(--bg)">
+    <div class="topbar">
+      <button class="back-btn" id="back-create">←</button>
+      <span class="topbar-title bebas">Spiel erstellen</span>
+    </div>
+    <div class="scroll-area">
+      <div class="input-group">
+        <label class="input-label">Dein Name (Hider)</label>
+        <input class="input" id="create-name" placeholder="z.B. Markus" maxlength="20" autocomplete="off">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Hiding-Zeit</label>
+        <select class="input" id="create-time">
+          <option value="45">45 Minuten</option>
+          <option value="60" selected>60 Minuten</option>
+          <option value="75">75 Minuten</option>
+          <option value="90">90 Minuten</option>
+          <option value="120">120 Minuten</option>
+        </select>
+      </div>
+      <button class="btn btn-orange" id="btn-create">Room erstellen →</button>
+    </div>
+  </div>
+
+  <div id="pg-join" class="page hidden" style="background:var(--bg)">
+    <div class="topbar">
+      <button class="back-btn" id="back-join">←</button>
+      <span class="topbar-title bebas">Beitreten</span>
+    </div>
+    <div class="scroll-area">
+      <div class="input-group">
+        <label class="input-label">Dein Name</label>
+        <input class="input" id="join-name" placeholder="z.B. Laura" maxlength="20" autocomplete="off">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Room Code</label>
+        <input class="input mono" id="join-code" placeholder="XXXX" maxlength="4"
+          style="font-size:1.8rem;letter-spacing:.3em;text-align:center;text-transform:uppercase"
+          autocomplete="off" autocapitalize="characters">
+      </div>
+      <button class="btn btn-orange" id="btn-join">Beitreten →</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '/js/supabase.js';
+    import { generateCode, getClientId, showToast, $ } from '/js/utils.js';
+    import { CARDS } from '/js/data.js';
+
+    const show = id => {
+      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+      $(id).classList.remove('hidden');
+    };
+
+    $('btn-show-create').onclick = () => show('pg-create');
+    $('btn-show-join').onclick   = () => show('pg-join');
+    $('back-create').onclick     = () => show('pg-landing');
+    $('back-join').onclick       = () => show('pg-landing');
+
+    $('btn-create').onclick = async () => {
+      const name = $('create-name').value.trim();
+      const mins = parseInt($('create-time').value);
+      if (!name) { showToast('Bitte Namen eingeben'); return; }
+      const btn = $('btn-create');
+      btn.disabled = true; btn.textContent = 'Erstelle...';
+      try {
+        let code, exists = true;
+        while (exists) {
+          code = generateCode();
+          const { data } = await supabase.from('sessions').select('id').eq('room_code', code).maybeSingle();
+          exists = !!data;
+        }
+        const { data: s, error: se } = await supabase.from('sessions')
+          .insert({ room_code: code, hiding_duration_min: mins, status: 'lobby' })
+          .select().single();
+        if (se) throw se;
+
+        const { data: p, error: pe } = await supabase.from('players')
+          .insert({ session_id: s.id, name, role: 'hider', client_id: getClientId() })
+          .select().single();
+        if (pe) throw pe;
+
+        localStorage.setItem('jltg_player_id', p.id);
+        localStorage.setItem('jltg_session_id', s.id);
+        location.href = `/lobby/${code}`;
+      } catch(e) {
+        showToast('Fehler: ' + e.message);
+        btn.disabled = false; btn.textContent = 'Room erstellen →';
+      }
+    };
+
+    $('btn-join').onclick = async () => {
+      const name = $('join-name').value.trim();
+      const code = $('join-code').value.trim().toUpperCase();
+      if (!name || code.length !== 4) { showToast('Name & 4-stelliger Code nötig'); return; }
+      const btn = $('btn-join');
+      btn.disabled = true; btn.textContent = 'Suche...';
+      try {
+        const { data: s, error } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+        if (error || !s) throw new Error('Room nicht gefunden.');
+        if (s.status === 'ended') throw new Error('Spiel bereits beendet.');
+
+        const { data: p, error: pe } = await supabase.from('players')
+          .insert({ session_id: s.id, name, role: 'seeker', client_id: getClientId() })
+          .select().single();
+        if (pe) throw pe;
+
+        localStorage.setItem('jltg_player_id', p.id);
+        localStorage.setItem('jltg_session_id', s.id);
+        location.href = `/lobby/${code}`;
+      } catch(e) {
+        showToast('Fehler: ' + e.message);
+        btn.disabled = false; btn.textContent = 'Beitreten →';
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#09090f">
+  <title>JLTG — Ende</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="toast"></div>
+  <div class="scroll-area" style="padding-top:3rem;text-align:center">
+    <div id="end-content" style="max-width:360px;margin:0 auto">
+      <div style="font-size:3rem;margin-bottom:1rem">⏳</div>
+      <div class="bebas" style="font-size:1.5rem">Lade...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '/js/supabase.js';
+    import { $ } from '/js/utils.js';
+
+    const code = location.pathname.split('/').pop().toUpperCase();
+
+    async function init() {
+      const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+      if (!s) { location.href = '/'; return; }
+
+      // wait for ended status
+      if (s.status !== 'ended') {
+        supabase.channel(`end:${s.id}`)
+          .on('postgres_changes', { event:'UPDATE', schema:'public', table:'sessions', filter:`id=eq.${s.id}` },
+            p => { if (p.new.status === 'ended') render(p.new); })
+          .subscribe();
+        return;
+      }
+      render(s);
+    }
+
+    function render(s) {
+      const bonus   = s.bonus_time_min || 0;
+      const dur     = s.hiding_duration_min || 0;
+      const total   = dur + bonus;
+      const started = s.time_started ? new Date(s.time_started) : null;
+      const ended   = s.time_ended   ? new Date(s.time_ended)   : null;
+      const actualMin = started && ended ? Math.round((ended - started) / 60000) : dur;
+
+      $('end-content').innerHTML = `
+        <div style="font-size:3.5rem;margin-bottom:1rem">🏁</div>
+        <div class="bebas" style="font-size:2.5rem;margin-bottom:.25rem">Spiel beendet!</div>
+        <div style="color:var(--muted);font-size:.8rem;font-family:'Space Mono',monospace;margin-bottom:2rem">
+          Room: ${s.room_code}
+        </div>
+
+        <div class="card" style="text-align:left;margin-bottom:.75rem">
+          <div class="input-label" style="margin-bottom:.5rem">Ergebnis</div>
+          <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--muted)">Tatsächliche Spielzeit</span>
+            <span style="font-weight:700">${actualMin} min</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--muted)">Timebonus aus Deck</span>
+            <span style="font-weight:700;color:var(--green2)">+${bonus} min</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.5rem 0">
+            <span style="font-weight:700;font-size:1rem">Gesamt</span>
+            <span style="font-weight:800;font-size:1.2rem;color:var(--orange)">${actualMin + bonus} min</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:2rem;color:var(--muted);font-size:.8rem">
+          ${bonus > 0
+            ? `🎉 Der Hider hat durch ungespielte Timebonus-Karten ${bonus} Minuten extra gesammelt!`
+            : 'Keine ungespielten Timebonus-Karten im Deck.'}
+        </div>
+
+        <button class="btn btn-orange" onclick="location.href='/'">🔄 Neues Spiel</button>
+      `;
+    }
+
+    init();
+  </script>
+</body>
+</html>

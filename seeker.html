@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#09090f">
+  <title>JLTG — Seeker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="toast"></div>
+
+  <div class="topbar">
+    <span class="topbar-title bebas">🔍 Seeker</span>
+    <span class="topbar-sub mono" id="timer-display">——:——</span>
+  </div>
+  <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+
+  <div class="scroll-area">
+    <div id="gps-panel"></div>
+    <div id="status-panel"></div>
+    <div id="ask-panel"></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '/js/supabase.js';
+    import { QUESTIONS, CATEGORY_RULES } from '/js/data.js';
+    import { showToast, $, formatTime, questionColor, questionEmoji } from '/js/utils.js';
+    import { startTracking } from '/js/gps.js';
+
+    const code = location.pathname.split('/').pop().toUpperCase();
+    const playerId = localStorage.getItem('jltg_player_id');
+
+    let session = null, question = null, timerInterval = null;
+
+    // ── INIT ──────────────────────────────────────────────────────────
+    async function init() {
+      const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+      if (!s) { location.href = '/'; return; }
+      if (s.status === 'ended') { location.href = `/end/${code}`; return; }
+      if (s.status !== 'running') { location.href = `/lobby/${code}`; return; }
+      session = s;
+
+      const { data: me } = await supabase.from('players').select('role').eq('id', playerId).single();
+      if (me?.role === 'hider') { location.href = `/hider/${code}`; return; }
+
+      await Promise.all([loadQuestion(), loadPlayers()]);
+      startTimer();
+      startTracking(playerId);
+      subscribe();
+    }
+
+    // ── TIMER ─────────────────────────────────────────────────────────
+    function startTimer() {
+      const started = new Date(session.time_started).getTime();
+      const totalSec = session.hiding_duration_min * 60;
+      function tick() {
+        const elapsed = Math.floor((Date.now() - started) / 1000);
+        const remaining = Math.max(0, totalSec - elapsed);
+        $('timer-display').textContent = formatTime(remaining);
+        $('timer-bar').style.width = `${(remaining / totalSec) * 100}%`;
+      }
+      tick();
+      timerInterval = setInterval(tick, 1000);
+    }
+
+    // ── LOAD ──────────────────────────────────────────────────────────
+    async function loadQuestion() {
+      const { data } = await supabase.from('questions').select('*')
+        .eq('session_id', session.id)
+        .order('created_at', { ascending: false }).limit(1);
+      question = data?.[0] || null;
+      renderStatus();
+      renderAskPanel();
+    }
+
+    async function loadPlayers() {
+      const { data } = await supabase.from('players').select('*').eq('session_id', session.id);
+      renderGPS(data || []);
+    }
+
+    // ── RENDER GPS ────────────────────────────────────────────────────
+    function renderGPS(players) {
+      $('gps-panel').innerHTML = `
+        <div class="card" style="margin-bottom:.75rem">
+          <div class="input-label" style="margin-bottom:.5rem">📍 Alle Standorte</div>
+          ${players.map(p => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border)">
+              <span style="font-weight:600;font-size:.85rem">${p.role==='hider'?'🕵️':'🔍'} ${p.name}${p.id===playerId?' (du)':''}</span>
+              <span style="font-size:.72rem;color:var(--muted)">${p.lat ? `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}` : 'kein GPS'}</span>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    // ── RENDER STATUS ─────────────────────────────────────────────────
+    function renderStatus() {
+      const q = question;
+      if (!q) { $('status-panel').innerHTML = ''; return; }
+      const qc = questionColor(q.category);
+      const qe = questionEmoji(q.category);
+
+      if (q.status === 'pending' || q.status === 'cards_drawn') {
+        $('status-panel').innerHTML = `
+          <div class="card card-${qc}" style="margin-bottom:.75rem">
+            <span class="badge badge-${qc}" style="margin-bottom:.5rem">${qe} ${q.category}</span>
+            <div style="font-size:.9rem;font-weight:600;line-height:1.4;margin-bottom:.5rem">${q.question_text}</div>
+            <div class="pulsing" style="font-size:.75rem;color:var(--muted)">
+              ${q.status === 'pending' ? 'Hider wählt Karten...' : 'Warte auf Antwort...'}
+            </div>
+          </div>`; return;
+      }
+
+      if (q.status === 'answered') {
+        $('status-panel').innerHTML = `
+          <div class="card ${q.answer ? 'card-green' : 'card-red'}" style="margin-bottom:.75rem">
+            <div style="font-size:.8rem;color:var(--muted);margin-bottom:.25rem">${qe} ${q.question_text}</div>
+            <div style="font-size:1.4rem;font-weight:700">${q.answer ? '✅ JA' : '❌ NEIN'}</div>
+            ${q.photo_url ? `<img src="${q.photo_url}" style="max-width:100%;border-radius:8px;margin-top:.75rem">` : ''}
+          </div>`; return;
+      }
+
+      if (q.status === 'vetoed') {
+        $('status-panel').innerHTML = `
+          <div class="card card-purple" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
+            <div style="font-size:1.2rem">🛡️ Veto!</div>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:.25rem">Frage wurde geblockt</div>
+          </div>`; return;
+      }
+      $('status-panel').innerHTML = '';
+    }
+
+    // ── RENDER ASK PANEL ──────────────────────────────────────────────
+    function renderAskPanel() {
+      const q = question;
+      const canAsk = !q || ['answered', 'vetoed', 'cards_drawn'].includes(q?.status);
+
+      if (!canAsk) { $('ask-panel').innerHTML = ''; return; }
+
+      $('ask-panel').innerHTML = `
+        <div class="card" style="margin-bottom:.75rem">
+          <div class="input-label" style="margin-bottom:.75rem">Frage stellen</div>
+          <div class="input-group">
+            <label class="input-label">Kategorie</label>
+            <select class="input" id="cat-select">
+              <option value="">-- wählen --</option>
+              <option value="orange">🟠 Orange — Ziehe 3, wähle 1</option>
+              <option value="blue">🔵 Blau — Ziehe 2, wähle 1</option>
+              <option value="red">🔴 Rot — Ziehe 4, wähle 2</option>
+              <option value="yellow">🟡 Gelb — Ziehe 1, wähle 1</option>
+            </select>
+          </div>
+          <div id="q-select-wrap" style="display:none" class="input-group">
+            <label class="input-label">Frage</label>
+            <select class="input" id="q-select">
+              <option value="">-- Frage wählen --</option>
+            </select>
+          </div>
+          <button class="btn btn-orange" id="btn-ask" disabled>Frage stellen →</button>
+        </div>`;
+
+      $('cat-select').addEventListener('change', e => {
+        const cat = e.target.value;
+        const wrap = $('q-select-wrap');
+        const sel  = $('q-select');
+        if (!cat) { wrap.style.display = 'none'; $('btn-ask').disabled = true; return; }
+        wrap.style.display = 'block';
+        sel.innerHTML = '<option value="">-- Frage wählen --</option>' +
+          (QUESTIONS[cat]||[]).map((q,i) => `<option value="${i}">${q}</option>`).join('');
+        sel.onchange = () => { $('btn-ask').disabled = sel.value === ''; };
+      });
+
+      $('btn-ask').addEventListener('click', async () => {
+        const cat  = $('cat-select')?.value;
+        const qIdx = $('q-select')?.value;
+        if (!cat || qIdx === '') return;
+        const qText = QUESTIONS[cat][parseInt(qIdx)];
+        const rules = CATEGORY_RULES[cat];
+
+        $('btn-ask').disabled = true; $('btn-ask').textContent = 'Wird gestellt...';
+
+        // draw random cards for hider to choose from
+        const { CARDS } = await import('/js/data.js');
+        const pool = CARDS.filter(c => c.cat !== 'trap');
+        const drawn = [...pool].sort(() => Math.random()-.5).slice(0, rules.draw);
+
+        const { data: newQ } = await supabase.from('questions').insert({
+          session_id: session.id, category: cat,
+          question_text: qText, draw_count: rules.draw,
+          keep_count: rules.keep, status: 'pending'
+        }).select().single();
+
+        await supabase.from('card_offers').insert(drawn.map(c => ({
+          question_id: newQ.id, session_id: session.id,
+          card_id: c.id, card_category: c.cat,
+          card_name: c.name, card_text: c.text, card_value: c.value||null
+        })));
+      });
+    }
+
+    // ── REALTIME ──────────────────────────────────────────────────────
+    function subscribe() {
+      supabase.channel(`seeker:${session.id}`)
+        .on('postgres_changes', { event:'*', schema:'public', table:'questions', filter:`session_id=eq.${session.id}` },
+          () => loadQuestion())
+        .on('postgres_changes', { event:'*', schema:'public', table:'players', filter:`session_id=eq.${session.id}` },
+          () => loadPlayers())
+        .on('postgres_changes', { event:'UPDATE', schema:'public', table:'sessions', filter:`id=eq.${session.id}` },
+          p => { if (p.new.status === 'ended') location.href = `/end/${code}`; })
+        .subscribe();
+    }
+
+    init();
+  </script>
+</body>
+</html>

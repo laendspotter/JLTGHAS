@@ -4,8 +4,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // ── CONFIG ── replace with your values ──────────────────────────────
 export const supabase = createClient(
-  'https://moueclfhpfdqobjprlbb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
+  'https://YOUR_PROJECT.supabase.co',
+  'YOUR_ANON_KEY'
 );
 
 // ── UTILS ────────────────────────────────────────────────────────────

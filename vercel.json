@@ -4,5 +4,13 @@
     { "source": "/hider/:code", "destination": "/hider.html" },
     { "source": "/seeker/:code", "destination": "/seeker.html" },
     { "source": "/end/:code",   "destination": "/end.html" }
+  ],
+  "headers": [
+    {
+      "source": "/js/(.*).js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
+      ]
+    }
   ]
 }

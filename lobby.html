@@ -27,7 +27,7 @@
 
 <script type="module">
 import { injectCSS } from '/js/css.js';
-import { supabase, $, showToast, STATIONS, CARDS } from '/js/shared.js';
+import { supabase, $, showToast, CARDS } from '/js/shared.js';
 injectCSS();
 
 const code = location.pathname.split('/').pop().toUpperCase();
@@ -46,17 +46,42 @@ async function init() {
   subscribe();
 }
 
+// live stationssuche via Photon API (OpenStreetMap) — filtert auf Stuttgart/VVS gebiet
+let searchTimeout = null;
+async function searchStations(query) {
+  if (query.length < 2) return [];
+  try {
+    // Photon geocoding, gefiltert auf Stuttgart region (bbox zone 1+2 süd)
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query + ' Stuttgart')}&limit=8&lang=de&bbox=9.0,48.6,9.4,48.9&osm_tag=public_transport:stop_position&osm_tag=railway:station&osm_tag=railway:halt&osm_tag=highway:bus_stop`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.features
+      .map(f => f.properties.name)
+      .filter(n => n && n.length > 1)
+      .filter((v, i, a) => a.indexOf(v) === i) // deduplicate
+      .slice(0, 8);
+  } catch { return []; }
+}
+
 function stationSearch(inputId, dropId, onPick) {
   const inp = $(inputId), drop = $(dropId);
   inp.addEventListener('input', () => {
-    const q = inp.value.trim().toLowerCase();
-    if (!q) { drop.classList.remove('open'); return; }
-    const hits = STATIONS.filter(s => s.toLowerCase().includes(q)).slice(0, 8);
-    drop.innerHTML = hits.map(s => `<div class="station-opt" data-s="${s}">${s}</div>`).join('');
-    drop.classList.toggle('open', hits.length > 0);
+    clearTimeout(searchTimeout);
+    const q = inp.value.trim();
+    if (!q || q.length < 2) { drop.classList.remove('open'); return; }
+    drop.innerHTML = '<div class="station-opt" style="color:var(--muted)">⏳ Suche...</div>';
+    drop.classList.add('open');
+    searchTimeout = setTimeout(async () => {
+      const hits = await searchStations(q);
+      if (!hits.length) {
+        drop.innerHTML = '<div class="station-opt" style="color:var(--muted)">Keine Ergebnisse</div>';
+        return;
+      }
+      drop.innerHTML = hits.map(s => `<div class="station-opt" data-s="${s}">${s}</div>`).join('');
+    }, 300);
   });
   drop.addEventListener('click', e => {
-    const opt = e.target.closest('.station-opt'); if (!opt) return;
+    const opt = e.target.closest('.station-opt'); if (!opt || !opt.dataset.s) return;
     inp.value = opt.dataset.s; onPick(opt.dataset.s); drop.classList.remove('open');
   });
   document.addEventListener('click', e => {

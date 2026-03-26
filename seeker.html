@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#09090f">
 <title>JLTG — Seeker</title>
-<style>:root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+:root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -93,7 +95,8 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 .pulsing{animation:pulse 1.5s ease infinite}
 .bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
 .mono{font-family:'Space Mono',monospace}
-@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}</style>
+@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}
+  </style>
 </head>
 <body>
 <div id="toast"></div>
@@ -108,253 +111,12 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
   <div id="status-panel"></div>
   <div id="ask-panel"></div>
 </div>
-
-<script>
-
-const code     = location.pathname.split('/').pop().toUpperCase();
-const playerId = localStorage.getItem('jltg_player_id');
-
-let session = null, question = null, timerInterval = null;
-
-// ── INIT ───────────────────────────────────────────────────────────
-async function init() {
-  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
-  if (!s) { location.href='/'; return; }
-  if (s.status==='ended')  { location.href='/end/'+code; return; }
-  if (s.status==='lobby')  { location.href='/lobby/'+code; return; }
-  session = s;
-  const { data: me } = await supabase.from('players').select('role').eq('id', playerId).single();
-  if (me?.role==='hider') { location.href='/hider/'+code; return; }
-  await Promise.all([loadQuestion(), loadPlayers()]);
-  renderPhaseBanner();
-  startTimer();
-  startGPS(playerId);
-  subscribe();
-}
-
-// ── TIMER ──────────────────────────────────────────────────────────
-function startTimer() {
-  clearInterval(timerInterval);
-  const totalSec = session.hiding_duration_min * 60;
-  if (session.status === 'hiding') {
-    // show countdown same as hider
-    const started = new Date(session.time_hiding_started).getTime();
-    timerInterval = setInterval(()=>{
-      const rem = Math.max(0, totalSec - Math.floor((Date.now()-started)/1000));
-      $('timer-disp').textContent = formatTime(rem);
-      $('timer-bar').style.width = (rem/totalSec*100)+'%';
-    }, 1000);
-  } else {
-    const started = new Date(session.time_game_started).getTime();
-    timerInterval = setInterval(()=>{
-      const elapsed = Math.floor((Date.now()-started)/1000);
-      $('timer-disp').textContent = formatTime(elapsed);
-      $('timer-bar').style.width = Math.min(100, elapsed/totalSec*100)+'%';
-    }, 1000);
-  }
-}
-
-// ── PHASE BANNER ───────────────────────────────────────────────────
-function renderPhaseBanner() {
-  if (session.status === 'hiding') {
-    $('phase-banner').innerHTML=`
-      <div class="card card-orange" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
-        <div style="font-size:1.5rem;margin-bottom:.25rem">🚇</div>
-        <div style="font-weight:700">Hider ist unterwegs...</div>
-        <div style="font-size:.8rem;color:var(--dim);margin-top:.25rem">
-          Startpunkt: <strong>${session.start_station||'—'}</strong><br>
-          Fragen noch nicht möglich. Warte bis der Hider angekommen ist.
-        </div>
-      </div>`;
-    $('ask-panel').innerHTML = '';
-  } else {
-    $('phase-banner').innerHTML = '';
-  }
-}
-
-// ── LOAD ───────────────────────────────────────────────────────────
-async function loadQuestion() {
-  const { data } = await supabase.from('questions').select('*')
-    .eq('session_id', session.id)
-    .order('created_at',{ascending:false}).limit(1);
-  question = data?.[0] || null;
-  renderStatus();
-  if (session.status === 'running') renderAskPanel();
-}
-
-async function loadPlayers() {
-  // WICHTIG: seeker sehen NUR andere seeker + sich selbst, NICHT den hider
-  const { data } = await supabase.from('players').select('*')
-    .eq('session_id', session.id)
-    .eq('role', 'seeker')  // ← kein hider GPS
-    .order('created_at');
-  renderGPS(data || []);
-}
-
-// ── RENDER GPS (nur seeker) ────────────────────────────────────────
-function renderGPS(seekers) {
-  if (!seekers.length) { $('gps-panel').innerHTML=''; return; }
-  $('gps-panel').innerHTML=`
-    <div class="card" style="margin-bottom:.75rem">
-      <div class="input-label" style="margin-bottom:.5rem">📍 Seeker Standorte</div>
-      ${seekers.map(p=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">
-          <span style="font-weight:600;font-size:.85rem;flex-shrink:0">🔍 ${p.name}${p.id===playerId?' (du)':''}</span>
-          <span style="font-size:.72rem;color:var(--muted);text-align:right" id="gps-${p.id}">${p.lat?'⏳':'kein GPS'}</span>
-        </div>`).join('')}
-    </div>`;
-  seekers.filter(p=>p.lat).forEach(async p=>{
-    const addr = await reverseGeocode(p.lat, p.lng);
-    const el = document.getElementById('gps-'+p.id);
-    if (el) el.textContent = addr;
-  });
-}
-
-// ── RENDER STATUS (letzte frage) ────────────────────────────────────
-function renderStatus() {
-  const q = question;
-  if (!q) { $('status-panel').innerHTML=''; return; }
-  const qc = qColor(q.category), qe = qEmoji(q.category);
-  if (q.status==='pending'||q.status==='cards_drawn') {
-    $('status-panel').innerHTML=`
-      <div class="card card-${qc}" style="margin-bottom:.75rem">
-        <span class="badge badge-${qc}" style="margin-bottom:.5rem">${qe} ${q.category}</span>
-        <div style="font-size:.9rem;font-weight:600;line-height:1.4;margin-bottom:.5rem">${q.question_text}</div>
-        <div class="pulsing" style="font-size:.75rem;color:var(--muted)">
-          ${q.status==='pending'?'Hider zieht Karten...':'Warte auf Antwort...'}
-        </div>
-      </div>`; return;
-  }
-  if (q.status==='answered') {
-    $('status-panel').innerHTML=`
-      <div class="card ${q.answer?'card-green':'card-red'}" style="margin-bottom:.75rem">
-        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.25rem">${qe} ${q.question_text}</div>
-        <div style="font-size:1.4rem;font-weight:700">${q.answer?'✅ JA':'❌ NEIN'}</div>
-        ${q.photo_url?`<img src="${q.photo_url}" style="max-width:100%;border-radius:8px;margin-top:.75rem">`:''}
-      </div>`; return;
-  }
-  if (q.status==='vetoed') {
-    $('status-panel').innerHTML=`
-      <div class="card card-purple" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
-        <div style="font-size:1.2rem">🛡️ Veto!</div>
-        <div style="font-size:.8rem;color:var(--muted);margin-top:.25rem">Frage wurde geblockt</div>
-      </div>`; return;
-  }
-  $('status-panel').innerHTML='';
-}
-
-// ── RENDER ASK PANEL ───────────────────────────────────────────────
-function renderAskPanel() {
-  if (session.status === 'hiding') { $('ask-panel').innerHTML=''; return; }
-  const q = question;
-  const canAsk = !q || ['answered','vetoed','cards_drawn'].includes(q?.status);
-  if (!canAsk) { $('ask-panel').innerHTML=''; return; }
-
-  $('ask-panel').innerHTML=`
-    <div class="card">
-      <div class="input-label" style="margin-bottom:.75rem">Frage stellen</div>
-      <div class="input-group">
-        <label class="input-label">Kategorie</label>
-        <select class="input" id="cat-sel">
-          <option value="">— wählen —</option>
-          <option value="orange">🟠 Orange — Ziehe 3, wähle 1</option>
-          <option value="blue">🔵 Blau — Ziehe 2, wähle 1</option>
-          <option value="red">🔴 Rot — Ziehe 4, wähle 2</option>
-          <option value="yellow">🟡 Gelb — Ziehe 1, wähle 1</option>
-        </select>
-      </div>
-      <div class="input-group" id="q-wrap" style="display:none">
-        <label class="input-label">Frage</label>
-        <select class="input" id="q-sel">
-          <option value="">— Frage wählen —</option>
-        </select>
-      </div>
-      <button class="btn btn-orange" id="btn-ask" disabled>Frage stellen →</button>
-    </div>`;
-
-  $('cat-sel').addEventListener('change', e=>{
-    const cat = e.target.value;
-    const wrap = $('q-wrap'), sel = $('q-sel');
-    if (!cat) { wrap.style.display='none'; $('btn-ask').disabled=true; return; }
-    wrap.style.display='block';
-    sel.innerHTML='<option value="">— Frage wählen —</option>'+
-      (QUESTIONS[cat]||[]).map((q,i)=>`<option value="${i}">${q}</option>`).join('');
-    sel.onchange = ()=>{ $('btn-ask').disabled = sel.value===''; };
-  });
-
-  $('btn-ask').addEventListener('click', async ()=>{
-    const cat  = $('cat-sel')?.value;
-    const qIdx = $('q-sel')?.value;
-    if (!cat||qIdx==='') return;
-    const qText = QUESTIONS[cat][parseInt(qIdx)];
-    const rules = CAT_RULES[cat];
-    $('btn-ask').disabled=true; $('btn-ask').textContent='Wird gestellt...';
-
-    // ziehe die nächsten X karten vom echten gemischten deck
-    const { data: topCards } = await supabase.from('deck')
-      .select('*')
-      .eq('session_id', session.id)
-      .eq('status', 'hand')
-      .order('draw_order', { ascending: true })
-      .limit(rules.draw);
-
-    if (!topCards || topCards.length === 0) {
-      showToast('Deck ist leer! 🃏');
-      $('btn-ask').disabled=false; $('btn-ask').textContent='Frage stellen →';
-      return;
-    }
-
-    // als 'offered' markieren damit sie nicht nochmal gezogen werden
-    await supabase.from('deck').update({ status: 'offered' })
-      .in('id', topCards.map(c => c.id));
-
-    const { data: newQ } = await supabase.from('questions').insert({
-      session_id:session.id, category:cat, question_text:qText,
-      draw_count:rules.draw, keep_count:rules.keep, status:'pending'
-    }).select().single();
-
-    // card_offers aus den echten deck-rows
-    await supabase.from('card_offers').insert(topCards.map(c=>({
-      question_id:newQ.id, session_id:session.id,
-      card_id:c.card_id, card_category:c.card_category,
-      card_name:c.card_name, card_text:c.card_text, card_value:c.card_value
-    })));
-  });
-}
-
-// ── REALTIME ───────────────────────────────────────────────────────
-function subscribe() {
-  supabase.channel('seeker:'+session.id)
-    .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'session_id=eq.'+session.id},
-      ()=>loadQuestion())
-    .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'session_id=eq.'+session.id},
-      ()=>loadPlayers())
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+session.id},
-      p=>{
-        const prev = session.status;
-        session = p.new;
-        if (p.new.status==='ended') { location.href='/end/'+code; return; }
-        if (prev==='hiding' && p.new.status==='running') {
-          renderPhaseBanner(); clearInterval(timerInterval); startTimer(); renderAskPanel();
-        }
-      })
-    .subscribe();
-}
-
-init();
-</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
-// js/css.js — injects shared CSS into page
-
-
-
-const { createClient } = supabase;
-// js/shared.js — importiert von allen pages
+<script>// js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = createClient(
+const supabase = window.supabase.createClient(
   'https://moueclfhpfdqobjprlbb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
@@ -841,6 +603,241 @@ const CARDS = [
   {id:249,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine S-Bahn nehmen obwohl eine U-Bahn kürzer wäre.',value:15},
   {id:250,cat:'trap',name:'Endspiel-Falle',     text:'+20 Minuten, wenn Seeker diese Station am Ende nie besucht haben.',value:20},
 ];
+</script>
+<script>
+
+
+const code     = location.pathname.split('/').pop().toUpperCase();
+const playerId = localStorage.getItem('jltg_player_id');
+
+let session = null, question = null, timerInterval = null;
+
+// ── INIT ───────────────────────────────────────────────────────────
+async function init() {
+  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+  if (!s) { location.href='/'; return; }
+  if (s.status==='ended')  { location.href='/end/'+code; return; }
+  if (s.status==='lobby')  { location.href='/lobby/'+code; return; }
+  session = s;
+  const { data: me } = await supabase.from('players').select('role').eq('id', playerId).single();
+  if (me?.role==='hider') { location.href='/hider/'+code; return; }
+  await Promise.all([loadQuestion(), loadPlayers()]);
+  renderPhaseBanner();
+  startTimer();
+  startGPS(playerId);
+  subscribe();
+}
+
+// ── TIMER ──────────────────────────────────────────────────────────
+function startTimer() {
+  clearInterval(timerInterval);
+  const totalSec = session.hiding_duration_min * 60;
+  if (session.status === 'hiding') {
+    // show countdown same as hider
+    const started = new Date(session.time_hiding_started).getTime();
+    timerInterval = setInterval(()=>{
+      const rem = Math.max(0, totalSec - Math.floor((Date.now()-started)/1000));
+      $('timer-disp').textContent = formatTime(rem);
+      $('timer-bar').style.width = (rem/totalSec*100)+'%';
+    }, 1000);
+  } else {
+    const started = new Date(session.time_game_started).getTime();
+    timerInterval = setInterval(()=>{
+      const elapsed = Math.floor((Date.now()-started)/1000);
+      $('timer-disp').textContent = formatTime(elapsed);
+      $('timer-bar').style.width = Math.min(100, elapsed/totalSec*100)+'%';
+    }, 1000);
+  }
+}
+
+// ── PHASE BANNER ───────────────────────────────────────────────────
+function renderPhaseBanner() {
+  if (session.status === 'hiding') {
+    $('phase-banner').innerHTML=`
+      <div class="card card-orange" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
+        <div style="font-size:1.5rem;margin-bottom:.25rem">🚇</div>
+        <div style="font-weight:700">Hider ist unterwegs...</div>
+        <div style="font-size:.8rem;color:var(--dim);margin-top:.25rem">
+          Startpunkt: <strong>${session.start_station||'—'}</strong><br>
+          Fragen noch nicht möglich. Warte bis der Hider angekommen ist.
+        </div>
+      </div>`;
+    $('ask-panel').innerHTML = '';
+  } else {
+    $('phase-banner').innerHTML = '';
+  }
+}
+
+// ── LOAD ───────────────────────────────────────────────────────────
+async function loadQuestion() {
+  const { data } = await supabase.from('questions').select('*')
+    .eq('session_id', session.id)
+    .order('created_at',{ascending:false}).limit(1);
+  question = data?.[0] || null;
+  renderStatus();
+  if (session.status === 'running') renderAskPanel();
+}
+
+async function loadPlayers() {
+  // WICHTIG: seeker sehen NUR andere seeker + sich selbst, NICHT den hider
+  const { data } = await supabase.from('players').select('*')
+    .eq('session_id', session.id)
+    .eq('role', 'seeker')  // ← kein hider GPS
+    .order('created_at');
+  renderGPS(data || []);
+}
+
+// ── RENDER GPS (nur seeker) ────────────────────────────────────────
+function renderGPS(seekers) {
+  if (!seekers.length) { $('gps-panel').innerHTML=''; return; }
+  $('gps-panel').innerHTML=`
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="input-label" style="margin-bottom:.5rem">📍 Seeker Standorte</div>
+      ${seekers.map(p=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;font-size:.85rem;flex-shrink:0">🔍 ${p.name}${p.id===playerId?' (du)':''}</span>
+          <span style="font-size:.72rem;color:var(--muted);text-align:right" id="gps-${p.id}">${p.lat?'⏳':'kein GPS'}</span>
+        </div>`).join('')}
+    </div>`;
+  seekers.filter(p=>p.lat).forEach(async p=>{
+    const addr = await reverseGeocode(p.lat, p.lng);
+    const el = document.getElementById('gps-'+p.id);
+    if (el) el.textContent = addr;
+  });
+}
+
+// ── RENDER STATUS (letzte frage) ────────────────────────────────────
+function renderStatus() {
+  const q = question;
+  if (!q) { $('status-panel').innerHTML=''; return; }
+  const qc = qColor(q.category), qe = qEmoji(q.category);
+  if (q.status==='pending'||q.status==='cards_drawn') {
+    $('status-panel').innerHTML=`
+      <div class="card card-${qc}" style="margin-bottom:.75rem">
+        <span class="badge badge-${qc}" style="margin-bottom:.5rem">${qe} ${q.category}</span>
+        <div style="font-size:.9rem;font-weight:600;line-height:1.4;margin-bottom:.5rem">${q.question_text}</div>
+        <div class="pulsing" style="font-size:.75rem;color:var(--muted)">
+          ${q.status==='pending'?'Hider zieht Karten...':'Warte auf Antwort...'}
+        </div>
+      </div>`; return;
+  }
+  if (q.status==='answered') {
+    $('status-panel').innerHTML=`
+      <div class="card ${q.answer?'card-green':'card-red'}" style="margin-bottom:.75rem">
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.25rem">${qe} ${q.question_text}</div>
+        <div style="font-size:1.4rem;font-weight:700">${q.answer?'✅ JA':'❌ NEIN'}</div>
+        ${q.photo_url?`<img src="${q.photo_url}" style="max-width:100%;border-radius:8px;margin-top:.75rem">`:''}
+      </div>`; return;
+  }
+  if (q.status==='vetoed') {
+    $('status-panel').innerHTML=`
+      <div class="card card-purple" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
+        <div style="font-size:1.2rem">🛡️ Veto!</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:.25rem">Frage wurde geblockt</div>
+      </div>`; return;
+  }
+  $('status-panel').innerHTML='';
+}
+
+// ── RENDER ASK PANEL ───────────────────────────────────────────────
+function renderAskPanel() {
+  if (session.status === 'hiding') { $('ask-panel').innerHTML=''; return; }
+  const q = question;
+  const canAsk = !q || ['answered','vetoed','cards_drawn'].includes(q?.status);
+  if (!canAsk) { $('ask-panel').innerHTML=''; return; }
+
+  $('ask-panel').innerHTML=`
+    <div class="card">
+      <div class="input-label" style="margin-bottom:.75rem">Frage stellen</div>
+      <div class="input-group">
+        <label class="input-label">Kategorie</label>
+        <select class="input" id="cat-sel">
+          <option value="">— wählen —</option>
+          <option value="orange">🟠 Orange — Ziehe 3, wähle 1</option>
+          <option value="blue">🔵 Blau — Ziehe 2, wähle 1</option>
+          <option value="red">🔴 Rot — Ziehe 4, wähle 2</option>
+          <option value="yellow">🟡 Gelb — Ziehe 1, wähle 1</option>
+        </select>
+      </div>
+      <div class="input-group" id="q-wrap" style="display:none">
+        <label class="input-label">Frage</label>
+        <select class="input" id="q-sel">
+          <option value="">— Frage wählen —</option>
+        </select>
+      </div>
+      <button class="btn btn-orange" id="btn-ask" disabled>Frage stellen →</button>
+    </div>`;
+
+  $('cat-sel').addEventListener('change', e=>{
+    const cat = e.target.value;
+    const wrap = $('q-wrap'), sel = $('q-sel');
+    if (!cat) { wrap.style.display='none'; $('btn-ask').disabled=true; return; }
+    wrap.style.display='block';
+    sel.innerHTML='<option value="">— Frage wählen —</option>'+
+      (QUESTIONS[cat]||[]).map((q,i)=>`<option value="${i}">${q}</option>`).join('');
+    sel.onchange = ()=>{ $('btn-ask').disabled = sel.value===''; };
+  });
+
+  $('btn-ask').addEventListener('click', async ()=>{
+    const cat  = $('cat-sel')?.value;
+    const qIdx = $('q-sel')?.value;
+    if (!cat||qIdx==='') return;
+    const qText = QUESTIONS[cat][parseInt(qIdx)];
+    const rules = CAT_RULES[cat];
+    $('btn-ask').disabled=true; $('btn-ask').textContent='Wird gestellt...';
+
+    // ziehe die nächsten X karten vom echten gemischten deck
+    const { data: topCards } = await supabase.from('deck')
+      .select('*')
+      .eq('session_id', session.id)
+      .eq('status', 'hand')
+      .order('draw_order', { ascending: true })
+      .limit(rules.draw);
+
+    if (!topCards || topCards.length === 0) {
+      showToast('Deck ist leer! 🃏');
+      $('btn-ask').disabled=false; $('btn-ask').textContent='Frage stellen →';
+      return;
+    }
+
+    // als 'offered' markieren damit sie nicht nochmal gezogen werden
+    await supabase.from('deck').update({ status: 'offered' })
+      .in('id', topCards.map(c => c.id));
+
+    const { data: newQ } = await supabase.from('questions').insert({
+      session_id:session.id, category:cat, question_text:qText,
+      draw_count:rules.draw, keep_count:rules.keep, status:'pending'
+    }).select().single();
+
+    // card_offers aus den echten deck-rows
+    await supabase.from('card_offers').insert(topCards.map(c=>({
+      question_id:newQ.id, session_id:session.id,
+      card_id:c.card_id, card_category:c.card_category,
+      card_name:c.card_name, card_text:c.card_text, card_value:c.card_value
+    })));
+  });
+}
+
+// ── REALTIME ───────────────────────────────────────────────────────
+function subscribe() {
+  supabase.channel('seeker:'+session.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'session_id=eq.'+session.id},
+      ()=>loadQuestion())
+    .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'session_id=eq.'+session.id},
+      ()=>loadPlayers())
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+session.id},
+      p=>{
+        const prev = session.status;
+        session = p.new;
+        if (p.new.status==='ended') { location.href='/end/'+code; return; }
+        if (prev==='hiding' && p.new.status==='running') {
+          renderPhaseBanner(); clearInterval(timerInterval); startTimer(); renderAskPanel();
+        }
+      })
+    .subscribe();
+}
+
+init();
 
 </script>
 </body>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#09090f">
+<title>JLTG — Lobby</title>
+</head>
+<body>
+<div id="toast"></div>
+<div class="topbar">
+  <span class="topbar-title bebas">Lobby</span>
+  <span class="topbar-sub mono" id="code-top"></span>
+</div>
+<div class="scroll-area">
+  <div class="room-code-display" id="copy-code">
+    <div class="room-code-label">Room Code</div>
+    <div class="room-code bebas" id="code-big"></div>
+    <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Tippen zum Kopieren</div>
+  </div>
+  <div class="input-label" style="margin-bottom:.5rem">Spieler</div>
+  <div id="player-list"></div>
+  <div id="setup-area" style="margin-top:1rem"></div>
+  <div id="action-area" style="margin-top:.75rem"></div>
+</div>
+
+<script type="module">
+import { injectCSS } from '/js/css.js';
+import { supabase, $, showToast, STATIONS, CARDS } from '/js/shared.js';
+injectCSS();
+
+const code = location.pathname.split('/').pop().toUpperCase();
+const playerId = localStorage.getItem('jltg_player_id');
+let session = null, myRole = null, chosenStation = '';
+
+async function init() {
+  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+  if (!s) { location.href = '/'; return; }
+  session = s;
+  $('code-top').textContent = code;
+  $('code-big').textContent = code;
+  if (s.status === 'hiding' || s.status === 'running') { redirectToGame(); return; }
+  if (s.status === 'ended') { location.href = '/end/' + code; return; }
+  await loadPlayers();
+  subscribe();
+}
+
+function stationSearch(inputId, dropId, onPick) {
+  const inp = $(inputId), drop = $(dropId);
+  inp.addEventListener('input', () => {
+    const q = inp.value.trim().toLowerCase();
+    if (!q) { drop.classList.remove('open'); return; }
+    const hits = STATIONS.filter(s => s.toLowerCase().includes(q)).slice(0, 8);
+    drop.innerHTML = hits.map(s => `<div class="station-opt" data-s="${s}">${s}</div>`).join('');
+    drop.classList.toggle('open', hits.length > 0);
+  });
+  drop.addEventListener('click', e => {
+    const opt = e.target.closest('.station-opt'); if (!opt) return;
+    inp.value = opt.dataset.s; onPick(opt.dataset.s); drop.classList.remove('open');
+  });
+  document.addEventListener('click', e => {
+    if (!inp.contains(e.target) && !drop.contains(e.target)) drop.classList.remove('open');
+  });
+}
+
+async function loadPlayers() {
+  const { data: players } = await supabase.from('players').select('*').eq('session_id', session.id).order('created_at');
+  const me = players?.find(p => p.id === playerId);
+  myRole = me?.role || 'seeker';
+
+  $('player-list').innerHTML = (players||[]).map(p => `
+    <div class="player-item">
+      <div class="player-avatar" style="background:${p.role==='hider'?'rgba(255,95,31,.2)':'rgba(79,142,247,.2)'}">
+        ${p.role==='hider'?'🕵️':'🔍'}
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:.9rem">${p.name}${p.id===playerId?' (du)':''}</div>
+        <span class="badge ${p.role==='hider'?'badge-orange':'badge-blue'}">${p.role==='hider'?'Hider':'Seeker'}</span>
+      </div>
+    </div>`).join('');
+
+  const seekers = players?.filter(p => p.role==='seeker') || [];
+  const hider   = players?.find(p => p.role==='hider');
+
+  if (myRole === 'hider') {
+    if (seekers.length === 0) {
+      $('setup-area').innerHTML = `
+        <div class="card card-blue" style="text-align:center;padding:1.25rem">
+          <div style="font-size:1.2rem;margin-bottom:.25rem">⏳</div>
+          <div style="font-weight:600">Warte auf Seeker...</div>
+        </div>`;
+      $('action-area').innerHTML = '';
+    } else {
+      $('setup-area').innerHTML = `
+        <div class="card" style="margin-bottom:.75rem">
+          <div class="input-label" style="margin-bottom:.5rem">🎯 Deine Zielstation</div>
+          <div class="station-wrap">
+            <input class="input" id="target-inp" placeholder="Station suchen..." autocomplete="off" value="${session.target_station||''}">
+            <div class="station-drop" id="target-drop"></div>
+          </div>
+          <div style="font-size:.72rem;color:var(--muted)">Wo du dich versteckst — Seeker sehen das nicht.</div>
+        </div>
+        <div class="card">
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:.2rem">Hiding-Zeit</div>
+          <div style="font-size:1.1rem;font-weight:700">${session.hiding_duration_min} Minuten Reisezeit</div>
+        </div>`;
+      chosenStation = session.target_station || '';
+      setTimeout(() => stationSearch('target-inp', 'target-drop', v => { chosenStation = v; }), 0);
+      $('action-area').innerHTML = `<button class="btn btn-green" id="btn-start">🚀 Spiel starten</button>`;
+      $('btn-start').onclick = startGame;
+    }
+  } else {
+    // seeker view
+    $('setup-area').innerHTML = `
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="input-label" style="margin-bottom:.5rem">📍 Euer Startpunkt</div>
+        <div class="station-wrap">
+          <input class="input" id="start-inp" placeholder="Startstation suchen..." autocomplete="off" value="${session.start_station||''}">
+          <div class="station-drop" id="start-drop"></div>
+        </div>
+      </div>`;
+    setTimeout(() => stationSearch('start-inp', 'start-drop', async v => {
+      await supabase.from('sessions').update({ start_station: v }).eq('id', session.id);
+    }), 0);
+    $('action-area').innerHTML = hider
+      ? `<div class="card card-blue" style="text-align:center;padding:1.25rem">
+          <div style="font-size:1.2rem;margin-bottom:.25rem">⏳</div>
+          <div style="font-weight:600">Warten auf Hider-Start...</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">Hiding-Zeit: ${session.hiding_duration_min} Minuten</div>
+        </div>`
+      : `<div class="card" style="text-align:center;padding:1.25rem;color:var(--muted)">Warte auf Hider...</div>`;
+  }
+}
+
+async function startGame() {
+  if (!chosenStation) { showToast('Bitte Zielstation wählen!'); return; }
+  const btn = $('btn-start');
+  btn.disabled = true; btn.textContent = '🚀 Starte...';
+  // seed deck
+  const shuffled = [...CARDS].sort(() => Math.random() - .5);
+  const { error } = await supabase.from('deck').insert(shuffled.map((c, i) => ({
+    session_id: session.id, card_id: c.id, card_category: c.cat,
+    card_name: c.name, card_text: c.text, card_value: c.value || null,
+    status: 'hand', draw_order: i
+  })));
+  if (error) { showToast('Deck-Fehler: ' + error.message); btn.disabled=false; btn.textContent='🚀 Spiel starten'; return; }
+  await supabase.from('sessions').update({
+    target_station: chosenStation,
+    status: 'hiding',
+    time_hiding_started: new Date().toISOString()
+  }).eq('id', session.id);
+}
+
+function redirectToGame() {
+  location.href = myRole === 'hider' ? '/hider/' + code : '/seeker/' + code;
+}
+
+function subscribe() {
+  supabase.channel('lobby:' + session.id)
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'sessions', filter:'id=eq.'+session.id },
+      p => { session = p.new; if (p.new.status==='hiding'||p.new.status==='running') redirectToGame(); })
+    .on('postgres_changes', { event:'*', schema:'public', table:'players', filter:'session_id=eq.'+session.id },
+      () => loadPlayers())
+    .subscribe();
+}
+
+$('copy-code').onclick = () => { navigator.clipboard.writeText(code); showToast('Code kopiert! 📋'); };
+init();
+</script>
+</body>
+</html>

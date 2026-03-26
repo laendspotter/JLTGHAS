@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#09090f">
+<title>JLTG Stuttgart</title>
+</head>
+<body>
+<div id="toast"></div>
+
+<div id="pg-landing" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:1.5rem;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(255,95,31,.22) 0%,transparent 60%),#09090f">
+  <div style="text-align:center;margin-bottom:2.5rem">
+    <div style="font-size:.6rem;letter-spacing:.35em;text-transform:uppercase;color:#ff5f1f;font-family:'Space Mono',monospace;margin-bottom:.5rem">Jet Lag: The Game</div>
+    <div class="bebas" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(3.5rem,14vw,5.5rem);line-height:.9;letter-spacing:.06em;background:linear-gradient(160deg,#fff 30%,#ff5f1f 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">JLTG<br>Stuttgart</div>
+    <div style="font-size:.7rem;color:#5a5a72;font-family:'Space Mono',monospace;letter-spacing:.12em;margin-top:.625rem">HIDE &amp; SEEK · VVS EDITION</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:.75rem;width:100%;max-width:300px">
+    <button class="btn btn-orange" id="btn-show-create">🕵️ Spiel erstellen</button>
+    <button class="btn btn-surface" id="btn-show-join">🔍 Spiel beitreten</button>
+  </div>
+</div>
+
+<div id="pg-create" style="display:none;flex-direction:column;min-height:100dvh">
+  <div class="topbar">
+    <button class="back-btn" id="back-create">←</button>
+    <span class="topbar-title bebas">Spiel erstellen</span>
+  </div>
+  <div class="scroll-area">
+    <div class="input-group">
+      <label class="input-label">Dein Name (Hider)</label>
+      <input class="input" id="create-name" placeholder="z.B. Markus" maxlength="20" autocomplete="off">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Hiding-Zeit</label>
+      <select class="input" id="create-time">
+        <option value="30">30 Minuten</option>
+        <option value="45">45 Minuten</option>
+        <option value="60" selected>60 Minuten</option>
+      </select>
+    </div>
+    <button class="btn btn-orange" id="btn-create">Room erstellen →</button>
+  </div>
+</div>
+
+<div id="pg-join" style="display:none;flex-direction:column;min-height:100dvh">
+  <div class="topbar">
+    <button class="back-btn" id="back-join">←</button>
+    <span class="topbar-title bebas">Beitreten</span>
+  </div>
+  <div class="scroll-area">
+    <div class="input-group">
+      <label class="input-label">Dein Name</label>
+      <input class="input" id="join-name" placeholder="z.B. Laura" maxlength="20" autocomplete="off">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Room Code</label>
+      <input class="input mono" id="join-code" placeholder="XXXX" maxlength="4"
+        style="font-size:1.8rem;letter-spacing:.3em;text-align:center;text-transform:uppercase"
+        autocomplete="off" autocapitalize="characters">
+    </div>
+    <button class="btn btn-orange" id="btn-join">Beitreten →</button>
+  </div>
+</div>
+
+<script type="module">
+import { injectCSS } from '/js/css.js';
+import { supabase, generateCode, getClientId, showToast, $ } from '/js/shared.js';
+injectCSS();
+
+const show = id => {
+  ['pg-landing','pg-create','pg-join'].forEach(p => $(p).style.display = 'none');
+  $(id).style.display = 'flex';
+};
+
+$('btn-show-create').onclick = () => show('pg-create');
+$('btn-show-join').onclick   = () => show('pg-join');
+$('back-create').onclick     = () => show('pg-landing');
+$('back-join').onclick       = () => show('pg-landing');
+
+$('btn-create').onclick = async () => {
+  const name = $('create-name').value.trim();
+  const mins = parseInt($('create-time').value);
+  if (!name) { showToast('Bitte Namen eingeben'); return; }
+  const btn = $('btn-create');
+  btn.disabled = true; btn.textContent = 'Erstelle...';
+  try {
+    let code, exists = true;
+    while (exists) {
+      code = generateCode();
+      const { data } = await supabase.from('sessions').select('id').eq('room_code', code).maybeSingle();
+      exists = !!data;
+    }
+    const { data: s, error: se } = await supabase.from('sessions')
+      .insert({ room_code: code, hiding_duration_min: mins, status: 'lobby' })
+      .select().single();
+    if (se) throw se;
+    const { data: p, error: pe } = await supabase.from('players')
+      .insert({ session_id: s.id, name, role: 'hider', client_id: getClientId() })
+      .select().single();
+    if (pe) throw pe;
+    localStorage.setItem('jltg_player_id', p.id);
+    localStorage.setItem('jltg_session_id', s.id);
+    location.href = '/lobby/' + code;
+  } catch(e) {
+    showToast('Fehler: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Room erstellen →';
+  }
+};
+
+$('btn-join').onclick = async () => {
+  const name = $('join-name').value.trim();
+  const code = $('join-code').value.trim().toUpperCase();
+  if (!name || code.length !== 4) { showToast('Name & 4-stelliger Code nötig'); return; }
+  const btn = $('btn-join');
+  btn.disabled = true; btn.textContent = 'Suche...';
+  try {
+    const { data: s, error } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+    if (error || !s) throw new Error('Room nicht gefunden.');
+    if (s.status === 'ended') throw new Error('Spiel bereits beendet.');
+    const { data: p, error: pe } = await supabase.from('players')
+      .insert({ session_id: s.id, name, role: 'seeker', client_id: getClientId() })
+      .select().single();
+    if (pe) throw pe;
+    localStorage.setItem('jltg_player_id', p.id);
+    localStorage.setItem('jltg_session_id', s.id);
+    location.href = '/lobby/' + code;
+  } catch(e) {
+    showToast('Fehler: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Beitreten →';
+  }
+};
+</script>
+</body>
+</html>

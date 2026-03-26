@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/lobby/:code", "destination": "/lobby.html" },
+    { "source": "/hider/:code", "destination": "/hider.html" },
+    { "source": "/seeker/:code", "destination": "/seeker.html" },
+    { "source": "/end/:code",   "destination": "/end.html" }
+  ]
+}

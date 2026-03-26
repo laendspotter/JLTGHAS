@@ -33,9 +33,7 @@
   <button class="btn btn-red btn-sm" id="btn-end" style="width:auto">⏹ Spiel beenden</button>
 </div>
 
-<script type="module">
-import { injectCSS } from '/js/css.js';
-import { supabase, $, showToast, formatTime, catColor, catIcon, qColor, qEmoji, CARDS, QUESTIONS, CAT_RULES, startGPS } from '/js/shared.js';
+<script>
 injectCSS();
 
 const code     = location.pathname.split('/').pop().toUpperCase();
@@ -362,6 +360,599 @@ function subscribe() {
 }
 
 init();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// js/css.js — injects shared CSS into page
+function injectCSS() {
+  const style = document.createElement('style');
+  style.textContent = `
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+:root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E")}
+.scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1rem 1rem 5rem}
+.topbar{display:flex;align-items:center;gap:.75rem;padding:.875rem 1rem;border-bottom:1px solid var(--border);background:var(--s1);flex-shrink:0;min-height:52px;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:1rem;font-weight:700}
+.topbar-sub{font-size:.7rem;color:var(--muted);font-family:'Space Mono',monospace;margin-left:auto}
+.back-btn{width:34px;height:34px;border-radius:var(--r-sm);background:var(--s2);border:1px solid var(--border);color:var(--text);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.875rem 1.25rem;border-radius:var(--r);font-family:'Manrope',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;border:none;transition:all .12s ease;letter-spacing:.01em;width:100%}
+.btn:active{transform:scale(.97);opacity:.9}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-orange{background:var(--orange);color:#fff}
+.btn-orange:hover:not(:disabled){background:var(--orange2)}
+.btn-surface{background:var(--s2);color:var(--text);border:1px solid var(--border)}
+.btn-surface:hover:not(:disabled){border-color:var(--orange)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-sm{padding:.5rem .875rem;font-size:.8rem;border-radius:var(--r-sm)}
+.btn-row{display:flex;gap:.5rem}
+.btn-row .btn{flex:1}
+.input-group{margin-bottom:1rem}
+.input-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+.input{width:100%;padding:.875rem 1rem;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'Manrope',sans-serif;font-size:1rem;outline:none;transition:border-color .15s}
+.input:focus{border-color:var(--orange)}
+.input::placeholder{color:var(--muted)}
+select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a5a72' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:.75rem}
+.card-surface{background:var(--s2)}
+.card-orange{border-color:var(--orange);background:rgba(255,95,31,.06)}
+.card-blue{border-color:var(--blue);background:rgba(79,142,247,.06)}
+.card-red{border-color:var(--red);background:rgba(240,68,56,.06)}
+.card-yellow{border-color:var(--yellow);background:rgba(245,197,24,.06)}
+.card-green{border-color:var(--green2);background:rgba(34,197,94,.06)}
+.card-purple{border-color:var(--purple);background:rgba(155,93,229,.06)}
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:20px;font-size:.68rem;font-weight:700;letter-spacing:.04em}
+.badge-orange{background:rgba(255,95,31,.15);color:var(--orange)}
+.badge-blue{background:rgba(79,142,247,.15);color:var(--blue)}
+.badge-red{background:rgba(240,68,56,.15);color:var(--red)}
+.badge-yellow{background:rgba(245,197,24,.15);color:var(--yellow)}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green2)}
+.badge-purple{background:rgba(155,93,229,.15);color:var(--purple)}
+.badge-muted{background:var(--s3);color:var(--muted)}
+.divider{height:1px;background:var(--border);margin:1rem 0}
+.timer-bar-wrap{height:3px;background:var(--s3);overflow:hidden;flex-shrink:0}
+.timer-bar{height:100%;background:linear-gradient(90deg,var(--green2),var(--orange));transition:width 1s linear}
+#toast{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--s3);border:1px solid var(--border);padding:.6rem 1.125rem;border-radius:20px;font-size:.8rem;font-weight:600;white-space:nowrap;opacity:0;transition:all .2s ease;z-index:10000;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:480px;padding:1.25rem;max-height:90dvh;overflow-y:auto;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 1rem}
+.player-item{display:flex;align-items:center;gap:.75rem;padding:.75rem;background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:.5rem}
+.player-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.hand-grid{display:flex;flex-wrap:wrap;gap:.4rem}
+.card-chip{padding:.35rem .65rem;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;transition:transform .1s;border:1px solid transparent;white-space:nowrap}
+.card-chip:active{transform:scale(.95)}
+.card-chip.badge-green{background:rgba(34,197,94,.15);color:var(--green2);border-color:rgba(34,197,94,.3)}
+.card-chip.badge-orange{background:rgba(255,95,31,.15);color:var(--orange);border-color:rgba(255,95,31,.3)}
+.card-chip.badge-purple{background:rgba(155,93,229,.15);color:var(--purple);border-color:rgba(155,93,229,.3)}
+.card-chip.badge-blue{background:rgba(79,142,247,.15);color:var(--blue);border-color:rgba(79,142,247,.3)}
+.card-chip.badge-red{background:rgba(240,68,56,.15);color:var(--red);border-color:rgba(240,68,56,.3)}
+.offer-card{padding:.75rem;border-radius:var(--r-sm);background:var(--s2);border:1.5px solid var(--border);margin-bottom:.5rem;cursor:default;transition:all .12s}
+.offer-card.selectable{cursor:pointer}
+.offer-card.selectable:hover{border-color:var(--orange)}
+.offer-card.selected{border-color:var(--orange);background:rgba(255,95,31,.08)}
+.offer-name{font-weight:700;font-size:.88rem;margin:.3rem 0 .2rem}
+.offer-text{font-size:.78rem;color:var(--dim);line-height:1.4}
+.station-wrap{position:relative;margin-bottom:.5rem}
+.station-drop{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--s2);border:1.5px solid var(--orange);border-top:none;border-radius:0 0 var(--r) var(--r);max-height:200px;overflow-y:auto;display:none}
+.station-drop.open{display:block}
+.station-opt{padding:.6rem 1rem;font-size:.88rem;cursor:pointer;border-bottom:1px solid var(--border)}
+.station-opt:hover{background:var(--s3);color:var(--orange)}
+.room-code-display{text-align:center;padding:2rem 1rem;background:var(--s2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1rem;cursor:pointer;transition:border-color .15s}
+.room-code-display:hover{border-color:var(--orange)}
+.room-code-label{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+.room-code{font-family:'Bebas Neue',sans-serif;font-size:4rem;letter-spacing:.25em;color:var(--orange);line-height:1}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulsing{animation:pulse 1.5s ease infinite}
+.bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
+.mono{font-family:'Space Mono',monospace}
+@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}
+  `;
+  document.head.appendChild(style);
+}
+
+
+const { createClient } = supabase;
+// js/shared.js — importiert von allen pages
+
+
+// ── CONFIG ── replace with your values ──────────────────────────────
+const supabase = createClient(
+  'https://moueclfhpfdqobjprlbb.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
+);
+
+// ── UTILS ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function getClientId() {
+  let id = localStorage.getItem('jltg_client_id');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('jltg_client_id', id); }
+  return id;
+}
+
+function getCode() {
+  return location.pathname.split('/').pop().toUpperCase();
+}
+
+function generateCode() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => c[Math.floor(Math.random()*c.length)]).join('');
+}
+
+function formatTime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function showToast(msg, ms=3000) {
+  const t = $('toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._to); t._to = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function catColor(cat) {
+  return {timebonus:'green',curse:'orange',veto:'purple',randomizer:'blue',trap:'red'}[cat]||'muted';
+}
+function catIcon(cat) {
+  return {timebonus:'⏳',curse:'🪄',veto:'🛡️',randomizer:'🎲',trap:'🪤'}[cat]||'🃏';
+}
+function qColor(cat) {
+  return {orange:'orange',blue:'blue',red:'red',yellow:'yellow'}[cat]||'muted';
+}
+function qEmoji(cat) {
+  return {orange:'🟠',blue:'🔵',red:'🔴',yellow:'🟡'}[cat]||'❓';
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16`,
+      { headers: { 'Accept-Language': 'de' } }
+    );
+    const d = await r.json();
+    const a = d.address || {};
+    if (a.road) {
+      const street = a.road + (a.house_number ? ' ' + a.house_number : '');
+      const area   = a.suburb || a.city_district || a.neighbourhood || '';
+      return street + (area ? ', ' + area : '');
+    }
+    return d.display_name?.split(',').slice(0,2).join(',').trim() || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch { return `${lat.toFixed(4)}, ${lng.toFixed(4)}`; }
+}
+
+function startGPS(playerId) {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(
+    async ({ coords: { latitude: lat, longitude: lng } }) => {
+      await supabase.from('players')
+        .update({ lat, lng, location_updated_at: new Date().toISOString() })
+        .eq('id', playerId);
+    },
+    err => console.warn('GPS:', err),
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+}
+
+// ── STATIONS ─────────────────────────────────────────────────────────
+const STATIONS = [
+  "Stuttgart Hauptbahnhof","Stuttgart Stadtmitte","Stuttgart Charlottenplatz",
+  "Stuttgart Rathaus","Stuttgart Marktplatz","Stuttgart Börsenplatz",
+  "Stuttgart Rotebühlplatz","Stuttgart Schlossplatz","Stuttgart Olgaeck",
+  "Stuttgart Neckartor","Stuttgart Mineralbäder","Stuttgart Ostendplatz",
+  "Stuttgart Stöckach","Stuttgart Wilhelmsplatz","Stuttgart Hedelfingen",
+  "Untertürkheim Bf","Obertürkheim Bf","Plochingen Bf",
+  "Bad Cannstatt Bf","Bad Cannstatt Wilhelmsplatz","Bad Cannstatt Neckarpark",
+  "Bad Cannstatt Hallschlag","Bad Cannstatt Burgholzhof",
+  "Münster Bf","Mönchfeld","Neugereut","Flughafen/Messe",
+  "Stuttgart Vaihingen","Stuttgart Möhringen Bf","Stuttgart Degerloch",
+  "Stuttgart Heumaden","Stuttgart Sillenbuch","Stuttgart Ruhbank",
+  "Stuttgart Bopser","Stuttgart Österreichischer Platz","Stuttgart Marienplatz",
+  "Stuttgart Heslach Vogelrain","Stuttgart Kräherwald","Stuttgart Gänsheide",
+  "Stuttgart Eugensplatz","Stuttgart Berliner Platz","Stuttgart Nordbahnhof",
+  "Stuttgart Pragfriedhof","Stuttgart Pragsattel","Stuttgart Löwentor",
+  "Stuttgart Borsigstraße","Stuttgart Mauserstraße",
+  "Zuffenhausen Bf","Zuffenhausen Kelterplatz","Stammheim",
+  "Freiberg","Kornwestheim Bf","Ludwigsburg Bf",
+  "Stuttgart Vogelsang","Stuttgart Killesberg","Stuttgart Rosenbergplatz",
+  "Stuttgart Hölderlinplatz","Stuttgart Stadtbibliothek","Stuttgart Liederhalle",
+  "Stuttgart Universität","Stuttgart Geroksruhe","Stuttgart Weinsteige",
+  "Stuttgart Waldau","Stuttgart Dürrlewang","Stuttgart Fasanenhof",
+  "Stuttgart Plieningen","Stuttgart Möhringen Mitte","Stuttgart Dachswald",
+  "Stuttgart Rohr Bf","Leinfelden Bf","Echterdingen Bf",
+  "Ostfildern Ruit","Ostfildern Nellingen","Ostfildern Scharnhauser Park",
+  "Denkendorf","Neuhausen (Filder)","Wendlingen Bf",
+  "Kirchheim (Teck) Bf","Nürtingen Bf","Esslingen Bf",
+  "Esslingen Stadtzentrum","Esslingen Mettingen",
+  "Stuttgart Feuerbach Bf","Stuttgart Botnang","Stuttgart Giebel",
+  "Stuttgart Weilimdorf","Stuttgart Wolfbusch",
+  "Korntal Bf","Ditzingen Bf","Gerlingen Bf",
+  "Stuttgart Hausen","Stuttgart Eltingen","Stuttgart Cannstatter Str."
+];
+
+// ── CATEGORY RULES ───────────────────────────────────────────────────
+const CAT_RULES = {
+  orange: { draw:3, keep:1, label:'Orange', emoji:'🟠', desc:'Messung — relative Position' },
+  blue:   { draw:2, keep:1, label:'Blau',   emoji:'🔵', desc:'Radar — Distanz' },
+  red:    { draw:4, keep:2, label:'Rot',     emoji:'🔴', desc:'Tentacles — Infrastruktur' },
+  yellow: { draw:1, keep:1, label:'Gelb',    emoji:'🟡', desc:'Foto — visuell' },
+};
+
+// ── QUESTIONS ────────────────────────────────────────────────────────
+const QUESTIONS = {
+  orange: [
+    "Sind wir (Seeker) aktuell näher am Hauptbahnhof als du?",
+    "Bist du auf einer Meereshöhe, die mindestens 50 Meter über oder unter uns liegt?",
+    "Bist du aktuell in der gleichen Tarifzone wie wir?",
+    "Liegt deine Station mehr als 5 Haltestellen von unserer aktuellen Position entfernt?",
+    "Fährst du auf einer Linie, die auch unsere aktuelle Station anfährt?",
+    "Bist du näher am Schlossplatz als wir?",
+    "Brauchst du weniger Umstiege zum HBF als wir?",
+    "Hat deine Station mehr Gleise als die Station, an der wir gerade stehen?",
+    "Bist du auf der gleichen Seite des Neckars wie wir?",
+    "Bist du aktuell weiter südlich als wir?",
+    "Bist du näher an einer Endstation des VVS-Netzes als wir?",
+    "Bist du näher an der S-Bahn-Stammstrecke als wir?",
+    "Ist deine Fahrtzeit zum HBF (laut App) länger als unsere?",
+    "Bist du im gleichen Stadtbezirk wie wir?",
+    "Bist du näher am Flughafen/Messe-Gelände als wir?",
+    "Liegt deine Station innerhalb des Stuttgarter Innenstadtrings (A1–A8)?",
+    "Bist du weiter vom Neckar entfernt als wir?",
+    "Bist du in einem Stadtteil, der mit 'heim' endet?",
+    "Bist du näher am SI-Centrum als wir?",
+    "Liegt deine Station höher über dem Meeresspiegel als unsere?",
+    "Bist du in einem Stadtteil östlich der B14?",
+    "Bist du näher an einem VVS-Park&Ride-Parkplatz als wir?",
+    "Hat deine Station mehr als einen Ausgang zur Straße?",
+    "Bist du näher an einem VVS-Fahrradabstellplatz als wir?",
+    "Brauchst du laut App länger als 20 Minuten zum Hauptbahnhof?"
+  ],
+  blue: [
+    "Bist du innerhalb eines 500m Radius um uns herum?",
+    "Bist du innerhalb eines 1km Radius um uns herum?",
+    "Bist du innerhalb eines 2km Radius um uns herum?",
+    "Bist du innerhalb eines 3km Radius um uns herum?",
+    "Bist du innerhalb eines 4km Radius um uns herum?",
+    "Bist du innerhalb eines 5km Radius um uns herum?",
+    "Bist du außerhalb eines 2km Radius um uns herum?",
+    "Bist du außerhalb eines 5km Radius um uns herum?",
+    "Bist du innerhalb eines 1,5km Radius um uns herum?",
+    "Bist du weiter als 3km von uns entfernt?",
+    "Bist du innerhalb eines 750m Radius um uns herum?",
+    "Bist du innerhalb eines 2,5km Radius um uns herum?",
+    "Bist du innerhalb eines 6km Radius um uns herum?",
+    "Bist du innerhalb eines 4,5km Radius um uns herum?",
+    "Bist du weiter als 8km von uns entfernt?",
+    "Bist du innerhalb eines 3,5km Radius um uns herum?",
+    "Bist du weiter als 6km von uns entfernt?",
+    "Bist du innerhalb eines 800m Radius um uns herum?",
+    "Bist du innerhalb eines 1,2km Radius um uns herum?",
+    "Bist du weiter als 10km von uns entfernt?",
+    "Bist du innerhalb eines 7km Radius um uns herum?",
+    "Bist du außerhalb eines 3km Radius um uns herum?",
+    "Bist du innerhalb eines 350m Radius um uns herum?",
+    "Bist du außerhalb eines 7km Radius um uns herum?",
+    "Bist du innerhalb eines 2,8km Radius um uns herum?"
+  ],
+  red: [
+    "Hält an deiner Station eine S-Bahn (S1–S6/S60)?",
+    "Befindest du dich auf der U-Bahn-Stammstrecke zwischen HBF und Marienplatz?",
+    "Bist du auf dem Filder-Plateau (z.B. U3, U5, U6, U8, U12 Süd)?",
+    "Fährt deine Linie an sichtbaren Weinbergen vorbei?",
+    "Ist deine Station komplett unterirdisch (Tunnelstation)?",
+    "Bist du an einer Station der Linie 10 (Zacke) oder der Seilbahn?",
+    "Ist deine Station die Endstation für mindestens eine Linie?",
+    "Halten an deiner Station mehr als 3 verschiedene Buslinien?",
+    "Hält an deiner Station eine U-Bahn-Linie U3 oder U8?",
+    "Halten an deiner Station auch Regionalzüge (RE/RB)?",
+    "Teilen sich S-Bahn und U-Bahn an deiner Station den gleichen Bahnsteig?",
+    "Bist du auf dem Linienast Richtung Botnang (U2, U9)?",
+    "Bist du auf dem Linienast Richtung Ostfildern (U7, U8)?",
+    "Ist dein Bahnsteig nur über einen Tunnel/Unterführung erreichbar?",
+    "Hält an deiner Station ein Nachtbus (N-Linien)?",
+    "Befindet sich an deiner Station ein Aufzug in Betrieb?",
+    "Ist deine Station nach einer Person benannt?",
+    "Fährt an deiner Station eine Linie ins Landkreis Esslingen?",
+    "Gibt es an deiner Station ein DB-Reisezentrum?",
+    "Hält an deiner Station die Linie U1?",
+    "Ist deine Station ein oberirdischer Hochbahnsteig?",
+    "Liegt deine Station auf der S-Bahn-Stammstrecke (HBF bis Bad Cannstatt)?",
+    "Fährt an deiner Station eine Linie Richtung Ludwigsburg?",
+    "Hat deine Station einen Park&Ride-Parkplatz?",
+    "Ist deine Station in der Nähe eines Stuttgarter Wahrzeichens?"
+  ],
+  yellow: [
+    "Schicke ein Foto vom Bodenbelag direkt unter deinen Füßen.",
+    "Schicke ein Foto von der Decke oder dem Himmel über dir.",
+    "Schicke ein Foto von deinem eigenen Schatten auf dem Bahnsteig.",
+    "Schicke ein Foto vom nächsten Mülleimer an deiner Station.",
+    "Schicke ein Foto von der Sitzbank an deinem Standort.",
+    "Schicke ein Foto von einem Ausschnitt des Fahrplans (keine Namen!).",
+    "Schicke ein Foto von der digitalen Anzeige (nur Restminuten).",
+    "Schicke ein Foto von der nächsten Treppe oder Rolltreppe.",
+    "Schicke ein Foto von einem Detail des Ticketautomaten.",
+    "Schicke ein Foto von einer Säule oder einem Pfeiler der Station.",
+    "Schicke ein Foto vom Gleisbett (ohne Schilder).",
+    "Schicke ein Foto von der Rückseite eines Haltestellenschilds.",
+    "Schicke ein Foto von einem Ausschnitt eines Werbeplakats.",
+    "Schicke ein Foto von einer Pflanze oder einem Baum in deiner Nähe.",
+    "Schicke ein Foto von einem zufälligen Gegenstand am Boden.",
+    "Schicke ein Foto von einem VVS-Logo an deiner Station.",
+    "Schicke ein Foto von einer Linienkarte oder einem Liniennetzplan.",
+    "Schicke ein Foto von einem P&R-Schild.",
+    "Schicke ein Foto von einem Graffiti oder Street-Art-Element.",
+    "Schicke ein Foto von einem Geländer oder Handlauf.",
+    "Schicke ein Foto vom Bahnsteignamen-Schild (kein Stationsname sichtbar!).",
+    "Schicke ein Foto von einem Notrufknopf oder Sicherheitstelefon.",
+    "Schicke ein Foto von einer Pfütze oder einem Gullideckel.",
+    "Schicke ein Foto von einem Wegweiser ohne Stationsname.",
+    "Schicke ein Foto vom Horizont oder der Skyline von deinem Standort."
+  ]
+};
+
+// ── CARDS (250) ──────────────────────────────────────────────────────
+const CARDS = [
+  {id:1,  cat:'timebonus',name:'Rush Hour',              text:'+10 Minuten auf dein Zeitkonto.',value:10},
+  {id:2,  cat:'timebonus',name:'Express-Zuschlag',       text:'+15 Minuten auf dein Zeitkonto.',value:15},
+  {id:3,  cat:'timebonus',name:'Pünktlichkeits-Bonus',   text:'+5 Minuten, wenn du gerade an einer Station stehst.',value:5},
+  {id:4,  cat:'timebonus',name:'Umstiegszeit',           text:'+10 Minuten (nur bei Stationswechsel).',value:10},
+  {id:5,  cat:'timebonus',name:'Schichtwechsel',         text:'+20 Minuten (sehr selten!).',value:20},
+  {id:6,  cat:'timebonus',name:'Kurzstrecke',            text:'+5 Minuten.',value:5},
+  {id:7,  cat:'timebonus',name:'Zeitkapsel',             text:'+10 Minuten.',value:10},
+  {id:8,  cat:'timebonus',name:'Feierabend',             text:'+15 Minuten.',value:15},
+  {id:9,  cat:'timebonus',name:'Bonusmeilen',            text:'+5 Minuten für jede durchfahrene Zone.',value:5},
+  {id:10, cat:'timebonus',name:'Taktverdichtung',        text:'+10 Minuten.',value:10},
+  {id:11, cat:'timebonus',name:'Cannstatter Wasen-Speed',text:'+10 Minuten Zeitbonus.',value:10},
+  {id:12, cat:'timebonus',name:'Fernsehturm-View',       text:'+15 Minuten Zeitbonus.',value:15},
+  {id:13, cat:'timebonus',name:'Kessel-Run',             text:'+10 Minuten, wenn du innerhalb des City-Rings bist.',value:10},
+  {id:14, cat:'timebonus',name:'VVS-Glück',              text:'+5 Minuten für eine Fahrt ohne Störung.',value:5},
+  {id:15, cat:'timebonus',name:'Zacke-Bonus',            text:'+10 Minuten Zeitbonus.',value:10},
+  {id:16, cat:'timebonus',name:'Lehenviertel-Chill',     text:'+15 Minuten Zeitbonus.',value:15},
+  {id:17, cat:'timebonus',name:'Feuersee-Vibe',          text:'+5 Minuten Zeitbonus.',value:5},
+  {id:18, cat:'timebonus',name:'HBF-Baustelle',          text:'+20 Minuten (Stuttgarter Geduldsprobe).',value:20},
+  {id:19, cat:'timebonus',name:'Schloßgarten-Shortcut',  text:'+10 Minuten Zeitbonus.',value:10},
+  {id:20, cat:'timebonus',name:'Stuttgarter Rössle',     text:'+25 Minuten Zeitbonus.',value:25},
+  {id:21, cat:'timebonus',name:'Mineralwasser-Pause',    text:'+10 Minuten. Wie jeder echte Schwabe.',value:10},
+  {id:22, cat:'timebonus',name:'Weinsteige-Belohnung',   text:'+15 Minuten. Kessel-erfahren genug.',value:15},
+  {id:23, cat:'timebonus',name:'Stadtbahnpünktlichkeit', text:'+10 Minuten. Die Bahn kam pünktlich. Historisches Ereignis.',value:10},
+  {id:24, cat:'timebonus',name:'Wasen-Stau-Profiteur',   text:'+15 Minuten. Alle anderen stehen im Stau.',value:15},
+  {id:25, cat:'timebonus',name:'Panoramabahn-Genuss',    text:'+10 Minuten. Die schönste Bahnstrecke der Stadt.',value:10},
+  {id:26, cat:'timebonus',name:'S-Bahn-Durchbindung',    text:'+5 Minuten. Ohne Umstieg durch den HBF.',value:5},
+  {id:27, cat:'timebonus',name:'Killesberg-Aussicht',    text:'+20 Minuten. Beste Aussicht auf den Kessel.',value:20},
+  {id:28, cat:'timebonus',name:'Wilhelma-Umweg',         text:'+10 Minuten. Am Zoo vorbeigekommen.',value:10},
+  {id:29, cat:'timebonus',name:'Degerloch-Höhenluft',    text:'+15 Minuten. Hoch genug um die Hektik zu vergessen.',value:15},
+  {id:30, cat:'timebonus',name:'Heslach-Discovery',      text:'+5 Minuten. Das coolste Viertel das kein Tourist kennt.',value:5},
+  {id:31, cat:'timebonus',name:'BUGA-Bonus',             text:'+10 Minuten. Erinnerung an bessere Zeiten auf dem Killesberg.',value:10},
+  {id:32, cat:'timebonus',name:'Stadtbibliothek-Vibe',   text:'+5 Minuten. Das ikonischste Gebäude Stuttgarts.',value:5},
+  {id:33, cat:'timebonus',name:'Neckarpark-Sprint',      text:'+10 Minuten. Den Neckar von zwei Seiten gesehen.',value:10},
+  {id:34, cat:'timebonus',name:'S21-Geduldsprobe',       text:'+20 Minuten. Du wartest schon länger als der Tiefbahnhof.',value:20},
+  {id:35, cat:'timebonus',name:'Böhmisches Viertel',     text:'+10 Minuten.',value:10},
+  {id:36, cat:'timebonus',name:'Vaihingen-Campus',       text:'+5 Minuten. Uni-Nähe gibt extra Motivation.',value:5},
+  {id:37, cat:'timebonus',name:'Plieningen-Randgebiet',  text:'+15 Minuten. So weit draußen dass die Seeker verzweifeln.',value:15},
+  {id:38, cat:'timebonus',name:'Rosenau-Park',           text:'+10 Minuten. Kurz die Natur genossen.',value:10},
+  {id:39, cat:'timebonus',name:'HBF-Taktik',             text:'+5 Minuten. Den HBF als Drehscheibe genutzt wie ein Profi.',value:5},
+  {id:40, cat:'timebonus',name:'ÖPNV-Sieg',              text:'+10 Minuten. Bewiesen dass der ÖPNV das Taxi schlägt.',value:10},
+  {id:41, cat:'timebonus',name:'Zuffenhausen-Norden',    text:'+10 Minuten. Nördlich genug dass die Seeker umdenken müssen.',value:10},
+  {id:42, cat:'timebonus',name:'Bad Cannstatt-Kurpark',  text:'+15 Minuten. Wellness im Verborgenen.',value:15},
+  {id:43, cat:'timebonus',name:'Berger Straße-Flaneur',  text:'+5 Minuten. Die Seele Stuttgarts gefunden.',value:5},
+  {id:44, cat:'timebonus',name:'Pragfriedhof-Ruhe',      text:'+10 Minuten. Ruhigste Station der Welt.',value:10},
+  {id:45, cat:'timebonus',name:'U-Bahn-Tunnel-Bonus',    text:'+5 Minuten pro unterirdisch zurückgelegter Station.',value:5},
+  {id:46, cat:'timebonus',name:'Weilimdorf-Endstation',  text:'+15 Minuten. So weit draußen, so viel Zeit.',value:15},
+  {id:47, cat:'timebonus',name:'Esslingen-Grenze',       text:'+20 Minuten. Die Stadtgrenze fast erreicht.',value:20},
+  {id:48, cat:'timebonus',name:'Sonntagsfahrplan-Glück', text:'+10 Minuten. Weniger Züge = mehr Versteckpotenzial.',value:10},
+  {id:49, cat:'timebonus',name:'Flughafen-Umweg',        text:'+15 Minuten. Internationales Flair ohne Flug.',value:15},
+  {id:50, cat:'timebonus',name:'Stäffele-Belohnung',     text:'+25 Minuten. Eine echte Stuttgarter Stäffele benutzt. Kult.',value:25},
+  {id:51, cat:'curse',name:'Stäffele-Pflicht',       text:'Seeker müssen die nächste Treppe einmal komplett hoch und runter rennen.'},
+  {id:52, cat:'curse',name:'Schlotzer-Pause',        text:'Seeker müssen an der nächsten Station ein Eis/Snack kaufen (5 min Pause).'},
+  {id:53, cat:'curse',name:'Ticket-Kontrolle',       text:'Seeker müssen 5 Minuten an ihrer Station warten und "kontrolliert" werden.'},
+  {id:54, cat:'curse',name:'Schienenersatzverkehr',  text:'Seeker dürfen für 15 Minuten nur Busse nutzen.'},
+  {id:55, cat:'curse',name:'U-Bahn-Verbot',          text:'Seeker dürfen für 20 Minuten nur S-Bahn fahren.'},
+  {id:56, cat:'curse',name:'Umleitung',              text:'Du bestimmst eine Station, die Seeker für 15 Minuten nicht betreten dürfen.'},
+  {id:57, cat:'curse',name:'Funkloch',               text:'Seeker müssen für 10 Minuten ihre Handys wegstecken (keine Karten/Apps).'},
+  {id:58, cat:'curse',name:'Tourist-Trap',           text:'Seeker müssen am Schlossplatz ein Selfie mit einer Statue machen.'},
+  {id:59, cat:'curse',name:'Rolltreppen-Phobie',     text:'Seeker dürfen für 15 Minuten keine Rolltreppen oder Aufzüge nutzen.'},
+  {id:60, cat:'curse',name:'Langsamfahrstelle',      text:'Seeker dürfen sich für 10 Minuten nur im Schritttempo bewegen.'},
+  {id:61, cat:'curse',name:'Endstation',             text:'Seeker müssen mit ihrer aktuellen Bahn bis zur nächsten Endstation fahren.'},
+  {id:62, cat:'curse',name:'Stille Post',            text:'Seeker dürfen für 10 Minuten nicht miteinander reden.'},
+  {id:63, cat:'curse',name:'VVS-Verwirrung',         text:'Seeker müssen an der nächsten Station aussteigen und die Bahn in die Gegenrichtung nehmen (1 Station).'},
+  {id:64, cat:'curse',name:'Gepäck-Last',            text:'Ein Seeker muss den Rucksack des anderen für 15 Minuten mittragen.'},
+  {id:65, cat:'curse',name:'Foto-Pflicht',           text:'Seeker müssen ein Foto von einem Hund oder einem roten Auto machen.'},
+  {id:66, cat:'curse',name:'Stäffele-Tortur',        text:'Seeker müssen die nächste Treppe 2x hoch und runter rennen.'},
+  {id:67, cat:'curse',name:'Brezel-Quest',           text:'Seeker müssen eine Laugenbrezel kaufen und essen, bevor sie weiterfahren.'},
+  {id:68, cat:'curse',name:'Kehrwoche',              text:'Seeker müssen 2 Minuten lang so tun, als würden sie fegen.'},
+  {id:69, cat:'curse',name:'Königstraßen-Slalom',    text:'Seeker müssen 10 min im Zick-Zack laufen.'},
+  {id:70, cat:'curse',name:'Maultaschen-Koma',       text:'Seeker dürfen für 15 Minuten nicht rennen.'},
+  {id:71, cat:'curse',name:'Milaneo-Verwirrung',     text:'Seeker müssen bei der Stadtbibliothek aussteigen, ins Milaneo und wieder raus.'},
+  {id:72, cat:'curse',name:'Panoramabahn-Sightseeing',text:'Seeker müssen 10 min aus dem Fenster schauen und jede Kirche laut benennen.'},
+  {id:73, cat:'curse',name:'0711-Check',             text:'Seeker müssen 7 Minuten und 11 Sekunden an der Stelle warten.'},
+  {id:74, cat:'curse',name:'Weinsteige-Fluch',       text:'Seeker dürfen 20 Minuten keine Bahnen nutzen, die bergauf fahren.'},
+  {id:75, cat:'curse',name:'Haltestellen-Hopping',   text:'Seeker müssen an jeder der nächsten 3 Stationen aus- und wieder einsteigen.'},
+  {id:76, cat:'curse',name:'Ticket-Wirrwarr',        text:'Seeker müssen einem Fremden das 4er-Ticket erklären.'},
+  {id:77, cat:'curse',name:'Schwaben-Shame',         text:'Seeker müssen laut "Mir kenne alles, außer Hochdeutsch" rufen.'},
+  {id:78, cat:'curse',name:'Killesberg-Aufstieg',    text:'Seeker müssen 50 Stufen steigen.'},
+  {id:79, cat:'curse',name:'Diesel-Verbot',          text:'Seeker dürfen für 15 Minuten keine Busse nutzen.'},
+  {id:80, cat:'curse',name:'SI-Centrum-Show',        text:'Seeker müssen eine Strophe aus einem Musical singen (Video-Beweis).'},
+  {id:81, cat:'curse',name:'Schwäbische Begrüßung',  text:'Seeker müssen den nächsten Fremden mit "Grüß Gott" ansprechen und auf Antwort warten.'},
+  {id:82, cat:'curse',name:'Mineralwasser-Challenge',text:'Seeker müssen ein Mineralwasser kaufen und es in einem Zug austrinken.'},
+  {id:83, cat:'curse',name:'S21-Erklärer',           text:'Seeker müssen einem Fremden in 30 Sekunden erklären warum Stuttgart 21 gut oder schlecht ist.'},
+  {id:84, cat:'curse',name:'Kehrwoche 2.0',          text:'Seeker müssen 3 Minuten lang so tun als würden sie ihren Bahnsteig fegen — mit Kommentar.'},
+  {id:85, cat:'curse',name:'VVS-Ansage-Challenge',   text:'Ein Seeker muss die nächste Durchsage perfekt nachsprechen.'},
+  {id:86, cat:'curse',name:'Trolleybus-Nostalgie',   text:'Seeker dürfen 10 Minuten lang nur über alte Stuttgarter Straßenbahnen reden.'},
+  {id:87, cat:'curse',name:'Stäffele-Training',      text:'Seeker müssen die nächste Treppe rückwärts hochgehen.'},
+  {id:88, cat:'curse',name:'Brezel-Diplomatie',      text:'Seeker müssen eine Brezel teilen — Hälften-Streit inklusive.'},
+  {id:89, cat:'curse',name:'Kessel-Geographie',      text:'Seeker müssen 5 Stuttgarter Stadtteile nennen, ohne die App zu benutzen.'},
+  {id:90, cat:'curse',name:'VVS-Quiz',               text:'Seeker müssen "wie viele Zonen hat der VVS?" korrekt beantworten, sonst 5 min Pause.'},
+  {id:91, cat:'curse',name:'Wilhelma-Ticket',        text:'Seeker müssen so tun als würden sie eine Eintrittskarte kaufen (Mimik reicht).'},
+  {id:92, cat:'curse',name:'Schwaben-Tempo',         text:'Seeker dürfen sich 10 Minuten nur im gemütlichen Schwaben-Bummel-Tempo bewegen.'},
+  {id:93, cat:'curse',name:'Dialekt-Runde',          text:'Seeker müssen die nächste Spielkommunikation komplett auf Schwäbisch führen.'},
+  {id:94, cat:'curse',name:'Porsche-Sighting',       text:'Seeker müssen in den nächsten 10 Minuten ein Porsche-Fahrzeug fotografieren.'},
+  {id:95, cat:'curse',name:'Mercedes-Pflicht',       text:'Seeker müssen einen Mercedes-Stern irgendwo entdecken und Foto machen.'},
+  {id:96, cat:'curse',name:'Stadtbahn-Surfer',       text:'Ein Seeker muss eine ganze Station stehen, ohne sich festzuhalten.'},
+  {id:97, cat:'curse',name:'Cannstatter Frühling',   text:'Seeker müssen 2 Minuten lang ein Lied summen — ohne aufzuhören.'},
+  {id:98, cat:'curse',name:'HBF-Orientierung',       text:'Seeker dürfen 5 Minuten lang nicht googlen und müssen trotzdem navigieren.'},
+  {id:99, cat:'curse',name:'Linie-10-Hommage',       text:'Seeker müssen sich vorstellen sie sind auf der Zacke und entsprechend schräg stehen.'},
+  {id:100,cat:'curse',name:'Bahnhof-Café-Pflicht',   text:'Seeker müssen an der nächsten Station etwas für unter 2€ kaufen.'},
+  {id:101,cat:'curse',name:'VVS-Verlobt',            text:'Seeker müssen an einer Haltestelle so tun als würden sie jemanden erwarten (2 min).'},
+  {id:102,cat:'curse',name:'No-App-Zone',            text:'Seeker dürfen 8 Minuten keine Navigationsapp nutzen.'},
+  {id:103,cat:'curse',name:'Silent Disco',           text:'Seeker dürfen 5 Minuten nur per Zeichen kommunizieren.'},
+  {id:104,cat:'curse',name:'Ersatz-Zugführer',       text:'Ein Seeker muss laut "Einsteigen bitte, Türen schließen" rufen bevor die nächste Bahn kommt.'},
+  {id:105,cat:'curse',name:'Cannstatter Wasensong',  text:'Seeker müssen einen Hit aus irgendeinem Wasen singen (Video-Beweis).'},
+  {id:106,cat:'curse',name:'Rücksackcheck',          text:'Seeker müssen ihren Rucksack komplett leeren und neu einpacken.'},
+  {id:107,cat:'curse',name:'Foto-Herausforderung',   text:'Seeker müssen ein Foto mit 3 verschiedenen Linienschildern gleichzeitig machen.'},
+  {id:108,cat:'curse',name:'Barrierefrei-Route',     text:'Seeker müssen die nächste Station ausschließlich barrierefrei benutzen (Lift, Rampe).'},
+  {id:109,cat:'curse',name:'Fremden-Wegweiser',      text:'Seeker müssen einem Fremden den Weg erklären, ohne selbst zu wissen ob er stimmt.'},
+  {id:110,cat:'curse',name:'HBF-Witz',               text:'Seeker müssen einen Witz über Stuttgart 21 reißen — Fremden gegenüber.'},
+  {id:111,cat:'curse',name:'Vaihingen-Verwirrung',   text:'Seeker müssen 5 Minuten in die falsche Richtung fahren dann zurück.'},
+  {id:112,cat:'curse',name:'Mischpult-Pause',        text:'Seeker dürfen 10 Minuten keinen Kopfhörer benutzen.'},
+  {id:113,cat:'curse',name:'Streckenübersicht',      text:'Seeker müssen ohne App 3 korrekte Umstiege zum HBF nennen.'},
+  {id:114,cat:'curse',name:'Fahrgast-Interview',     text:'Seeker fragen einen Fremden nach seiner Lieblingsstation.'},
+  {id:115,cat:'curse',name:'Schienenpoesie',         text:'Seeker müssen spontan einen 2-Zeiler über ihre Umgebung erfinden und laut vortragen.'},
+  {id:116,cat:'curse',name:'Neckar-Check',           text:'Seeker müssen in den nächsten 20 Minuten den Neckar von einer Brücke fotografieren.'},
+  {id:117,cat:'curse',name:'Sitzplatz-Pflicht',      text:'Seeker dürfen auf der nächsten Fahrt nicht stehen — kein Sitzplatz = nächste Bahn warten.'},
+  {id:118,cat:'curse',name:'Tunnel-Stille',          text:'Seeker dürfen während einer Tunnelfahrt nicht reden.'},
+  {id:119,cat:'curse',name:'Linienwechsel-Pflicht',  text:'Seeker müssen beim nächsten Umstieg eine andere Linie nehmen (min 1 Station).'},
+  {id:120,cat:'curse',name:'VVS-Botschafter',        text:'Seeker müssen einem Fremden das Zonenmodell erklären. Live. Ohne Vorbereitung.'},
+  {id:121,cat:'veto',name:'Veto',                text:'Blockiere eine komplette Frage der Seeker.'},
+  {id:122,cat:'veto',name:'Ghost-Mode',          text:'Der nächste Radar-Ping ist ungültig.'},
+  {id:123,cat:'veto',name:'Falsches Signal',     text:'Du darfst bei der nächsten Messung lügen.'},
+  {id:124,cat:'veto',name:'Nebelkerze',          text:'Schicke den Seekern ein Foto von einer Station, an der du vor 20 Minuten warst.'},
+  {id:125,cat:'veto',name:'Doppel-Veto',         text:'Blockiere zwei Fragen hintereinander.'},
+  {id:126,cat:'veto',name:'Umkehr-Schub',        text:'Seeker müssen die Kategorie wechseln, die sie gerade gewählt haben.'},
+  {id:127,cat:'veto',name:'Schutzschild',        text:'Du musst für die nächsten 10 Minuten keine Fragen beantworten.'},
+  {id:128,cat:'veto',name:'Ausweis Bitte',       text:'Seeker müssen dir ihren Standort per Screenshot schicken.'},
+  {id:129,cat:'veto',name:'Signalstörung',       text:'Wähle eine Tentacles-Frage aus, die du NICHT beantwortest.'},
+  {id:130,cat:'veto',name:'Tarndevice',          text:'Dein nächster Radar-Ping wird um 1km verschoben.'},
+  {id:131,cat:'veto',name:'Tunnel-Vision',       text:'Keine Antwort auf Fragen zum aktuellen Verkehrsmittel.'},
+  {id:132,cat:'veto',name:'Signal-Störung 2.0',  text:'Schicke einen Ping, der 500m daneben liegt.'},
+  {id:133,cat:'veto',name:'Umleitung Defensiv',  text:'Nenne eine falsche Stadt-Hälfte für deine Fahrtrichtung.'},
+  {id:134,cat:'veto',name:'Tarnkappe',           text:'Nächster Ping darf ein neutrales Wand-Foto sein.'},
+  {id:135,cat:'veto',name:'VVS-Fehlercode',      text:'Antworte auf die nächste Frage mit "Keine Info verfügbar".'},
+  {id:136,cat:'veto',name:'Schattenspiel',       text:'Schicke ein Foto von deinem Schatten statt der Umgebung.'},
+  {id:137,cat:'veto',name:'Zonen-Joker',         text:'Verheimliche für 20 min deine aktuelle Zone.'},
+  {id:138,cat:'veto',name:'Radar-Block',         text:'Seeker dürfen 15 min keinen Ping anfordern.'},
+  {id:139,cat:'veto',name:'Falsche Fährte',      text:'Nenne eine Station von vor 30 min als aktuell.'},
+  {id:140,cat:'veto',name:'Notbremse',           text:'Brich einen Curse der Seeker sofort ab.'},
+  {id:141,cat:'veto',name:'Kessel-Nebel',        text:'Dein nächster Ping zeigt die falsche Höhenstufe an.'},
+  {id:142,cat:'veto',name:'Schwaben-Schweigen',  text:'Du musst 15 Minuten keine einzige Frage beantworten.'},
+  {id:143,cat:'veto',name:'Tunnel-Tarnung',      text:'Schicke ein komplett schwarzes Foto als "Tunnel-Beweis".'},
+  {id:144,cat:'veto',name:'VVS-Disclaimer',      text:'Antworte auf die nächste Frage mit "Angaben ohne Gewähr".'},
+  {id:145,cat:'veto',name:'Fake-Umstieg',        text:'Täusche einen Umstieg vor — nenne eine Station die du gar nicht anfährst.'},
+  {id:146,cat:'veto',name:'Linie Verschleiert',  text:'Nenne eine falsche Linienzahl bei der nächsten Rot-Frage.'},
+  {id:147,cat:'veto',name:'Zeitzone',            text:'Behaupte du fährst mit 10 Minuten Verspätung.'},
+  {id:148,cat:'veto',name:'Stäffele-Alibi',      text:'Schicke ein Foto von einer Treppe — irgendwo in Stuttgart.'},
+  {id:149,cat:'veto',name:'Bahnsteig-Wechsel',   text:'Wechsle den Bahnsteig und schicke den Ping erst danach ab.'},
+  {id:150,cat:'veto',name:'Doppel-Ghost',        text:'Die nächsten zwei Radar-Pings der Seeker sind ungültig.'},
+  {id:151,cat:'veto',name:'VVS-App-Ausfall',     text:'Erkläre dass deine App gerade nicht lädt. Keine Antwort auf technische Fragen.'},
+  {id:152,cat:'veto',name:'Cannstatter Ablenkung',text:'Schicke ein Video von irgendeinem Straßenlärm ohne Kontext.'},
+  {id:153,cat:'veto',name:'Zonengrenz-Joker',    text:'Behaupte du bist gerade beim Zonenwechsel — genauer Standort unklar.'},
+  {id:154,cat:'veto',name:'S-Bahn-Block',        text:'Seeker dürfen 20 Minuten keine S-Bahn-Fragen stellen.'},
+  {id:155,cat:'veto',name:'Kessel-Echo',         text:'Kopiere die letzte Antwort der Seeker zurück an sie.'},
+  {id:156,cat:'veto',name:'Falscher Bahnsteig',  text:'Nenne die falsche Gleiszahl bei der nächsten Frage.'},
+  {id:157,cat:'veto',name:'Panorama-Täuschung',  text:'Schicke ein Foto von einer Aussicht — ohne erkennbare Details.'},
+  {id:158,cat:'veto',name:'No-Photo-Zone',       text:'Verweigere das nächste Gelb-Foto mit "Kein Foto erlaubt hier."'},
+  {id:159,cat:'veto',name:'Signalstörung Pro',   text:'Wähle zwei Tentacles-Fragen aus, die du nicht beantwortest.'},
+  {id:160,cat:'veto',name:'HBF-Schild-Trick',    text:'Schicke ein Foto eines HBF-Schildes — ohne zu verraten ob du dort bist.'},
+  {id:161,cat:'veto',name:'Veto-Erweiterung',    text:'Blockiere eine Frage und wähle selbst die Ersatzkategorie.'},
+  {id:162,cat:'veto',name:'Blickfang',           text:'Schicke ein Foto mit maximalem visuellen Rauschen (Werbewand, Menschenmenge).'},
+  {id:163,cat:'veto',name:'Kompass-Block',       text:'Seeker dürfen bei der nächsten Orange-Frage nicht nach Himmelsrichtungen fragen.'},
+  {id:164,cat:'veto',name:'Late-Night-Shield',   text:'Nach 20 Uhr: Ignoriere den nächsten Ping komplett.'},
+  {id:165,cat:'veto',name:'Linien-Verschleierung',text:'Nenne nur die Stammstrecke, nicht die spezifische Linie.'},
+  {id:166,cat:'veto',name:'Radar-Jamming',       text:'Verschiebe deinen nächsten Ping um exakt 2 Stationen.'},
+  {id:167,cat:'veto',name:'Wartesaal-Alibi',     text:'Behaupte du sitzt im Wartesaal des HBF — 10 Minuten nicht verifizierbar.'},
+  {id:168,cat:'veto',name:'Zonen-Nebel',         text:'Verheimliche ob du in Zone 1 oder Zone 2 bist für 25 Minuten.'},
+  {id:169,cat:'veto',name:'Verbindungsausfall',  text:'Ignoriere die nächste Blau-Frage mit "Verbindung unterbrochen."'},
+  {id:170,cat:'veto',name:'Stadtgrenz-Joker',    text:'Behaupte du bist gerade an der Stadtgrenze. Exakter Standort: unbekannt.'},
+  {id:171,cat:'randomizer',name:'Discard 1, Draw 1',    text:'Wirf eine Karte ab und zieh eine neue.'},
+  {id:172,cat:'randomizer',name:'Discard 2, Draw 2',    text:'Wirf zwei Karten ab und zieh zwei neue.'},
+  {id:173,cat:'randomizer',name:'Full Reset',           text:'Wirf deine Hand ab und zieh 3 neue Karten.'},
+  {id:174,cat:'randomizer',name:'Cycle',                text:'Alle Hider-Karten zurück ins Deck, ziehe 2 neue.'},
+  {id:175,cat:'randomizer',name:'Draw 2',               text:'Zieh zwei zusätzliche Karten.'},
+  {id:176,cat:'randomizer',name:'Search',               text:'Suche dir eine Karte aus dem Ablagestapel aus.'},
+  {id:177,cat:'randomizer',name:'Jackpot',              text:'Zieh 3 Karten, behalte eine, Rest weg.'},
+  {id:178,cat:'randomizer',name:'Karten-Klau',          text:'Schau dir die nächste Frage der Seeker vorher an.'},
+  {id:179,cat:'randomizer',name:'Randomizer',           text:'Seeker dürfen Kategorie der nächsten Frage nicht wählen.'},
+  {id:180,cat:'randomizer',name:'Alles auf Null',       text:'Seeker dürfen keine Notizen checken für 5 min.'},
+  {id:181,cat:'randomizer',name:'Tauschrausch',         text:'Tausche Handkarte mit zufälliger Karte vom Stapel.'},
+  {id:182,cat:'randomizer',name:'Glücksrad',            text:'Zieh eine Karte. Timebonus zählt doppelt.'},
+  {id:183,cat:'randomizer',name:'Kartenmischer',        text:'Mische Ablagestapel zurück ins Deck.'},
+  {id:184,cat:'randomizer',name:'Last Minute',          text:'Nur bei Seeker-Distanz < 500m. +5 min Zeitbonus.',value:5},
+  {id:185,cat:'randomizer',name:'Joker',                text:'Kopiere den Effekt der letzten Hider-Karte.'},
+  {id:186,cat:'randomizer',name:'Kessel-Chaos',         text:'Alle Spieler mischen und verteilen Handkarten neu.'},
+  {id:187,cat:'randomizer',name:'Neustart',             text:'Lege alles ab und ziehe 5 neue Karten.'},
+  {id:188,cat:'randomizer',name:'Copycat',              text:'Kopiere einen Curse der Seeker.'},
+  {id:189,cat:'randomizer',name:'Nightliner',           text:'Nach 16 Uhr: Verdopple deinen nächsten Timebonus.'},
+  {id:190,cat:'randomizer',name:'Stuttgart-Master',     text:'Ziehe 2 Karten. Bei Timebonus +30 Minuten.',value:30},
+  {id:191,cat:'randomizer',name:'Kessel-Shuffle',       text:'Alle Spieler tauschen je eine Handkarte zufällig.'},
+  {id:192,cat:'randomizer',name:'Linien-Lotterie',      text:'Seeker müssen die nächste Frage mit gewürfelter Kategorie stellen.'},
+  {id:193,cat:'randomizer',name:'Draw 3, Play 2',       text:'Zieh 3 Karten, spiele 2 sofort, eine weg.'},
+  {id:194,cat:'randomizer',name:'Stuttgarter Glücksrad',text:'Zieh eine Karte. Wenn Curse → wirkt doppelt.'},
+  {id:195,cat:'randomizer',name:'Umtausch',             text:'Tausche deine gesamte Hand mit dem Ablagestapel.'},
+  {id:196,cat:'randomizer',name:'Geheimkarte',          text:'Zieh eine Karte, zeige sie nicht — spiele sie blind in 5 Minuten.'},
+  {id:197,cat:'randomizer',name:'Linien-Jackpot',       text:'Zieh 4 Karten, behalte die mit der höchsten Nummer.'},
+  {id:198,cat:'randomizer',name:'VVS-Chaos',            text:'Alle aktiven Curses enden sofort, alle Spieler ziehen 2 Karten.'},
+  {id:199,cat:'randomizer',name:'Doppelzug',            text:'Zieh 2 Karten und spiele eine sofort ohne Wartezeit.'},
+  {id:200,cat:'randomizer',name:'Zeitreise',            text:'Spiele eine abgeworfene Karte erneut aus dem Discard-Stapel.'},
+  {id:201,cat:'randomizer',name:'Cannstatter Wildcard', text:'Die nächste Curse trifft beide Seeker gleichzeitig.'},
+  {id:202,cat:'randomizer',name:'Kessel-Refill',        text:'Ziehe bis du 5 Handkarten hast.'},
+  {id:203,cat:'randomizer',name:'Recycler',             text:'Wirf 3 Karten ab, zieh 4 neue.'},
+  {id:204,cat:'randomizer',name:'Linien-Duplikat',      text:'Kopiere den Effekt der gerade gespielten Karte ein zweites Mal.'},
+  {id:205,cat:'randomizer',name:'Zeitfenster',          text:'Spiele eine Timebonus-Karte ohne die Bedingung zu erfüllen.'},
+  {id:206,cat:'randomizer',name:'Blind Draw',           text:'Zieh 2 Karten ohne sie anzuschauen — spiele sie innerhalb von 10 min.'},
+  {id:207,cat:'randomizer',name:'Stäffele-Speedrun',    text:'Nächster Timebonus zählt 1,5x statt doppelt.'},
+  {id:208,cat:'randomizer',name:'S-Bahn-Spezial',       text:'Wenn du auf einer S-Bahn bist: Zieh 3 statt 2 Karten.'},
+  {id:209,cat:'randomizer',name:'Nachtlinie-Bonus',     text:'Nach 22 Uhr: Jeder Timebonus gibt +10 min extra.',value:10},
+  {id:210,cat:'randomizer',name:'Weichenstellung',      text:'Wähle selbst welche Kategorie die Seeker als nächstes nutzen müssen.'},
+  {id:211,cat:'randomizer',name:'HBF-Wild',             text:'An einer Umstiegsstation: Spiele beliebig viele Karten in einem Zug.'},
+  {id:212,cat:'randomizer',name:'Kesselblick',          text:'Schau dir die 3 obersten Karten des Stapels an, leg zurück in beliebiger Reihenfolge.'},
+  {id:213,cat:'randomizer',name:'Linienwechsel-Karte',  text:'Tausche einen Curse gegen einen Timebonus aus dem Ablagestapel.'},
+  {id:214,cat:'randomizer',name:'Glücksgriff',          text:'Zieh 5, behalte 2, Rest weg.'},
+  {id:215,cat:'randomizer',name:'VVS-Sonderfahrt',      text:'Dein nächster Curse wird zum Timebonus umgewandelt.'},
+  {id:216,cat:'randomizer',name:'Express-Shuffle',      text:'Mische das komplette Deck und zieh neu (4 Karten).'},
+  {id:217,cat:'randomizer',name:'Endhaltestelle',       text:'Spiele alle Karten auf der Hand auf einmal — Effekte gelten alle.'},
+  {id:218,cat:'randomizer',name:'Fahrgastzähler',       text:'Für jede Person im Fahrzeug: +1 Minute Timebonus (max 20 min).',value:20},
+  {id:219,cat:'randomizer',name:'Zeitzone-Shift',       text:'Schiebe einen laufenden Curse um 5 Minuten nach vorne oder hinten.'},
+  {id:220,cat:'randomizer',name:'HBF-Joker',            text:'An einer HBF-Station: Ziehe 3 Karten gratis.'},
+  {id:221,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker diese Station betreten.',value:10},
+  {id:222,cat:'trap',name:'Falle',              text:'+5 Minuten, wenn Seeker hier einsteigen.',value:5},
+  {id:223,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier aussteigen.',value:15},
+  {id:224,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker hier umsteigen.',value:10},
+  {id:225,cat:'trap',name:'Falle',              text:'+20 Minuten, wenn Seeker länger als 3 Minuten hier bleiben.',value:20},
+  {id:226,cat:'trap',name:'Falle',              text:'+5 Minuten pro Seeker, der diese Station betritt.',value:5},
+  {id:227,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker von hier in die falsche Richtung weiterfahren.',value:15},
+  {id:228,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker diese Station mit aktivem Curse besuchen.',value:10},
+  {id:229,cat:'trap',name:'Falle',              text:'+25 Minuten, wenn Seeker diese Station aktiv durchsuchen.',value:25},
+  {id:230,cat:'trap',name:'Jackpot-Falle',      text:'+30 Minuten, sobald ein Seeker diese Station besucht.',value:30},
+  {id:231,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker diese Station ohne aktives Ticket betreten.',value:15},
+  {id:232,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker hier eine falsche Linie nehmen.',value:10},
+  {id:233,cat:'trap',name:'Falle',              text:'+20 Minuten, wenn Seeker hier eine Gelb-Frage stellen.',value:20},
+  {id:234,cat:'trap',name:'Falle',              text:'+10 Minuten pro Minute über 2 Minuten Wartezeit (max 30 min).',value:10},
+  {id:235,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker von hier in deine Richtung weiterfahren.',value:15},
+  {id:236,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker diese Station als "sicher" einstufen.',value:10},
+  {id:237,cat:'trap',name:'Falle',              text:'+25 Minuten, wenn Seeker hier eine Rot-Frage stellen.',value:25},
+  {id:238,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker genau dann ankommen wenn eine Bahn abfährt.',value:10},
+  {id:239,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine Orange-Frage stellen die du veto-t hast.',value:15},
+  {id:240,cat:'trap',name:'Falle',              text:'+20 Minuten, wenn Seeker hier auf dich warten statt weiterzusuchen.',value:20},
+  {id:241,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker hier mehr als 1 Umstieg machen.',value:10},
+  {id:242,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker von hier einen Ping schicken der dich nicht trifft.',value:15},
+  {id:243,cat:'trap',name:'Doppelfalle',        text:'Lege diese Karte auf eine zweite Station — beide gelten gleichzeitig.',value:10},
+  {id:244,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker diese Station auf dem Weg zurück passieren.',value:10},
+  {id:245,cat:'trap',name:'Falle',              text:'+20 Minuten, wenn Seeker hier ein Foto (Gelb) von der falschen Seite schicken.',value:20},
+  {id:246,cat:'trap',name:'Falle',              text:'+15 Minuten wenn Seeker in der Rush Hour (7–9/16–18 Uhr) hier einsteigen.',value:15},
+  {id:247,cat:'trap',name:'Falle',              text:'+10 Minuten, wenn Seeker eine Curse auf dich anwenden die du mit Notbremse brichst.',value:10},
+  {id:248,cat:'trap',name:'Grand Jackpot-Falle',text:'+30 Minuten — nur wenn Seeker exakt diese Station bestätigen.',value:30},
+  {id:249,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine S-Bahn nehmen obwohl eine U-Bahn kürzer wäre.',value:15},
+  {id:250,cat:'trap',name:'Endspiel-Falle',     text:'+20 Minuten, wenn Seeker diese Station am Ende nie besucht haben.',value:20},
+];
+
+injectCSS();
 </script>
 </body>
 </html>

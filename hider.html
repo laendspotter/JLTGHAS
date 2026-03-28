@@ -9,7 +9,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:480px;padding:1.25rem;max-height:90dvh;overflow-y:auto;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 1rem}
+.offer-card{padding:.75rem;border-radius:var(--r-sm);background:var(--s2);border:1.5px solid var(--border);margin-bottom:.5rem}
+.offer-name{font-weight:700;font-size:.88rem;margin:.3rem 0 .2rem}
+.offer-text{font-size:.78rem;color:var(--dim);line-height:1.4}
+</style>
+<style>700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 :root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -95,41 +104,39 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 .pulsing{animation:pulse 1.5s ease infinite}
 .bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
 .mono{font-family:'Space Mono',monospace}
-@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}
-  </style>
+@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}</style>
 </head>
 <body>
 <div id="toast"></div>
 
-<!-- card modal -->
 <div class="modal-overlay" id="card-modal">
   <div class="modal" id="card-modal-body"></div>
 </div>
-
 <div class="topbar">
-  <span class="topbar-title bebas">🕵️ Hider</span>
-  <span class="topbar-sub mono" id="timer-disp">——:——</span>
+  <span class="topbar-title" style="font-family:'Bebas Neue',sans-serif">🕵️ Hider</span>
+  <span style="font-size:.7rem;color:var(--muted);font-family:'Space Mono',monospace;margin-left:auto" id="timer-disp">——:——</span>
 </div>
-<div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
-
+<div style="height:3px;background:var(--s3);overflow:hidden;flex-shrink:0"><div id="timer-bar" style="height:100%;background:linear-gradient(90deg,var(--green2),var(--orange));width:100%;transition:width 1s linear"></div></div>
 <div class="scroll-area">
   <div id="chips" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem"></div>
   <div id="phase-banner"></div>
   <div id="question-panel"></div>
-  <div id="hand-section">
+  <div>
     <div class="input-label" style="margin-bottom:.6rem">🃏 Deck (<span id="hand-count">0</span> Karten)</div>
     <div class="hand-grid" id="hand-grid"></div>
   </div>
-  <div class="divider"></div>
+  <div style="height:1px;background:var(--border);margin:1rem 0"></div>
   <button class="btn btn-red btn-sm" id="btn-end" style="width:auto">⏹ Spiel beenden</button>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>// js/shared.js — importiert von allen pages
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/_sb.js"></script>
+<script>
+// js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = window.supabase.createClient(
-  'https://moueclfhpfdqobjprlbb.supabase.co',
+const _sb = window._sb.createClient(
+  'https://moueclfhpfdqobjprlbb._sb.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
 
@@ -197,7 +204,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await supabase.from('players')
+      await _sb.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -615,26 +622,22 @@ const CARDS = [
   {id:249,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine S-Bahn nehmen obwohl eine U-Bahn kürzer wäre.',value:15},
   {id:250,cat:'trap',name:'Endspiel-Falle',     text:'+20 Minuten, wenn Seeker diese Station am Ende nie besucht haben.',value:20},
 ];
-</script>
-<script>
 
 
-const code     = location.pathname.split('/').pop().toUpperCase();
+
+const code = location.pathname.split('/').pop().toUpperCase();
 const playerId = localStorage.getItem('jltg_player_id');
-
 let session = null, hand = [], question = null, offers = [];
-let drawIndex = 0, kept = [];
-let timerInterval = null;
+let drawIndex = 0, kept = [], timerInterval = null;
 
-// ── INIT ───────────────────────────────────────────────────────────
 async function init() {
-  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
-  if (!s) { location.href = '/'; return; }
-  if (s.status === 'ended') { location.href = '/end/'+code; return; }
-  if (s.status === 'lobby') { location.href = '/lobby/'+code; return; }
+  const { data: s } = await _sb.from('sessions').select('*').eq('room_code', code).single();
+  if (!s) { location.href='/'; return; }
+  if (s.status==='ended') { location.href='/end/'+code; return; }
+  if (s.status==='lobby') { location.href='/lobby/'+code; return; }
   session = s;
-  const { data: me } = await supabase.from('players').select('role').eq('id', playerId).single();
-  if (me?.role !== 'hider') { location.href = '/seeker/'+code; return; }
+  const { data: me } = await _sb.from('players').select('role').eq('id', playerId).single();
+  if (me?.role !== 'hider') { location.href='/seeker/'+code; return; }
   await Promise.all([loadHand(), loadQuestion()]);
   renderPhaseBanner();
   startTimer();
@@ -642,306 +645,249 @@ async function init() {
   subscribe();
 }
 
-// ── TIMER ──────────────────────────────────────────────────────────
 function startTimer() {
   clearInterval(timerInterval);
   const totalSec = session.hiding_duration_min * 60;
   if (session.status === 'hiding') {
-    // countdown reisezeit
     const started = new Date(session.time_hiding_started).getTime();
     timerInterval = setInterval(() => {
       const rem = Math.max(0, totalSec - Math.floor((Date.now()-started)/1000));
-      $('timer-disp').textContent = formatTime(rem);
-      $('timer-bar').style.width = (rem/totalSec*100)+'%';
+      document.getElementById('timer-disp').textContent = formatTime(rem);
+      document.getElementById('timer-bar').style.width = (rem/totalSec*100)+'%';
     }, 1000);
   } else {
-    // count-up: wie lange seeker schon suchen
     const started = new Date(session.time_game_started).getTime();
     timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now()-started)/1000);
-      $('timer-disp').textContent = formatTime(elapsed);
-      $('timer-bar').style.width = Math.min(100, elapsed/totalSec*100)+'%';
+      document.getElementById('timer-disp').textContent = formatTime(elapsed);
+      document.getElementById('timer-bar').style.width = Math.min(100,elapsed/totalSec*100)+'%';
     }, 1000);
   }
 }
 
-// ── PHASE BANNER ───────────────────────────────────────────────────
 function renderPhaseBanner() {
+  const el = document.getElementById('phase-banner');
   if (session.status === 'hiding') {
-    $('phase-banner').innerHTML = `
-      <div class="card card-orange" style="margin-bottom:.75rem;text-align:center;padding:1.5rem">
-        <div style="font-size:1.5rem;margin-bottom:.5rem">🚇</div>
-        <div style="font-weight:700;font-size:1rem;margin-bottom:.25rem">Versteckphase läuft</div>
-        <div style="font-size:.8rem;color:var(--dim);margin-bottom:1rem">
-          Zielstation: <strong>${session.target_station||'—'}</strong><br>
-          Fahre jetzt dorthin. Seeker können noch keine Fragen stellen.
-        </div>
-        <button class="btn btn-green" id="btn-arrived">✅ Ich bin angekommen!</button>
-      </div>`;
-    $('btn-arrived').onclick = async () => {
+    el.innerHTML = '<div class="card card-orange" style="margin-bottom:.75rem;text-align:center;padding:1.5rem">' +
+      '<div style="font-size:1.5rem;margin-bottom:.5rem">🚇</div>' +
+      '<div style="font-weight:700;font-size:1rem;margin-bottom:.25rem">Versteckphase läuft</div>' +
+      '<div style="font-size:.8rem;color:var(--dim);margin-bottom:1rem">Zielstation: <strong>' + (session.target_station||'—') + '</strong><br>Fahre jetzt dorthin.</div>' +
+      '<button class="btn btn-green" id="btn-arrived">✅ Ich bin angekommen!</button></div>';
+    document.getElementById('btn-arrived').onclick = async () => {
       if (!confirm('Bist du an deiner Zielstation angekommen?')) return;
       clearInterval(timerInterval);
-      await supabase.from('sessions').update({
-        status: 'running',
-        time_game_started: new Date().toISOString()
-      }).eq('id', session.id);
+      await _sb.from('sessions').update({ status:'running', time_game_started: new Date().toISOString() }).eq('id', session.id);
     };
-    $('question-panel').innerHTML = '';
+    document.getElementById('question-panel').innerHTML = '';
   } else {
-    $('phase-banner').innerHTML = '';
+    el.innerHTML = '';
   }
 }
 
-// ── LOAD ───────────────────────────────────────────────────────────
 async function loadHand() {
-  // hand = karten die behalten wurden (status='hand'), offered werden noch nicht gezählt
-  const { data } = await supabase.from('deck').select('*')
-    .eq('session_id', session.id)
-    .eq('status','hand')
-    .order('draw_order', { ascending: true });
+  const { data } = await _sb.from('deck').select('*').eq('session_id', session.id).eq('status','hand').order('draw_order',{ascending:true});
   hand = data || [];
   renderHand();
 }
 
 async function discardRemaining() {
-  // alle noch 'offered' karten dieser session → discarded
-  await supabase.from('deck').update({ status: 'discarded', played_at: new Date().toISOString() })
-    .eq('session_id', session.id)
-    .eq('status', 'offered');
+  await _sb.from('deck').update({ status:'discarded', played_at: new Date().toISOString() })
+    .eq('session_id', session.id).eq('status','offered');
 }
 
 async function loadQuestion() {
-  if (session.status === 'hiding') { $('question-panel').innerHTML=''; return; }
-  const { data } = await supabase.from('questions').select('*')
+  if (session.status === 'hiding') { document.getElementById('question-panel').innerHTML=''; return; }
+  const { data } = await _sb.from('questions').select('*')
     .eq('session_id', session.id)
     .not('status','in','("answered","vetoed","cards_drawn")')
     .order('created_at',{ascending:false}).limit(1);
   question = data?.[0] || null;
   if (question?.status === 'pending') {
-    const { data: o } = await supabase.from('card_offers').select('*')
-      .eq('question_id', question.id).order('created_at');
-    offers = o || [];
-    drawIndex = 0; kept = [];
+    const { data: o } = await _sb.from('card_offers').select('*').eq('question_id', question.id).order('created_at');
+    offers = o || []; drawIndex = 0; kept = [];
   } else { offers = []; drawIndex = 0; kept = []; }
   renderQuestion();
 }
 
-// ── RENDER HAND ────────────────────────────────────────────────────
 function renderHand() {
   const bonusTotal = hand.filter(c=>c.card_category==='timebonus').reduce((s,c)=>s+(c.card_value||0),0);
-  $('chips').innerHTML = `
-    <span class="badge badge-green">+${bonusTotal} min im Deck</span>
-    <span class="badge badge-muted">${hand.length} Karten</span>
-    ${question?.status==='pending'?'<span class="badge badge-orange pulsing">❓ Frage offen</span>':''}`;
-  $('hand-count').textContent = hand.length;
-  $('hand-grid').innerHTML = hand.map(c=>`
-    <div class="card-chip badge-${catColor(c.card_category)}" data-id="${c.id}" title="${c.card_text}">
-      ${catIcon(c.card_category)} ${c.card_name}
-    </div>`).join('');
-  $('hand-grid').querySelectorAll('.card-chip').forEach(el=>
-    el.addEventListener('click', ()=>openCardModal(el.dataset.id)));
+  document.getElementById('chips').innerHTML =
+    '<span class="badge badge-green">+' + bonusTotal + ' min im Deck</span>' +
+    '<span class="badge badge-muted">' + hand.length + ' Karten</span>' +
+    (question?.status==='pending' ? '<span class="badge badge-orange" style="animation:pulse 1.5s ease infinite">❓ Frage offen</span>' : '');
+  document.getElementById('hand-count').textContent = hand.length;
+  document.getElementById('hand-grid').innerHTML = hand.map(c =>
+    '<div class="card-chip badge-' + catColor(c.card_category) + '" data-id="' + c.id + '" title="' + c.card_text + '">' +
+    catIcon(c.card_category) + ' ' + c.card_name + '</div>'
+  ).join('');
+  document.getElementById('hand-grid').querySelectorAll('.card-chip').forEach(el =>
+    el.addEventListener('click', () => openCardModal(el.dataset.id)));
 }
 
-// ── RENDER QUESTION ────────────────────────────────────────────────
 function renderQuestion() {
-  if (session.status === 'hiding') { $('question-panel').innerHTML=''; return; }
+  if (session.status === 'hiding') { document.getElementById('question-panel').innerHTML=''; return; }
   const q = question;
+  const panel = document.getElementById('question-panel');
   if (!q) {
-    $('question-panel').innerHTML=`
-      <div class="card" style="text-align:center;padding:1.5rem;margin-bottom:.75rem;color:var(--muted)">
-        <div style="font-size:1.5rem;margin-bottom:.25rem">💤</div>
-        <div>Warte auf Frage der Seeker</div>
-      </div>`; return;
+    panel.innerHTML = '<div class="card" style="text-align:center;padding:1.5rem;margin-bottom:.75rem;color:var(--muted)"><div style="font-size:1.5rem;margin-bottom:.25rem">💤</div><div>Warte auf Frage der Seeker</div></div>';
+    return;
   }
   const qc = qColor(q.category), qe = qEmoji(q.category);
-
-  // PHASE 1: karten einzeln ziehen
   if (q.status === 'pending' && drawIndex < q.draw_count) {
     const cur = offers[drawIndex];
-    if (!cur) { $('question-panel').innerHTML=''; return; }
+    if (!cur) { panel.innerHTML=''; return; }
     const remaining = q.draw_count - drawIndex - 1;
-    const stillNeeded = q.keep_count - kept.length;
-    const mustKeep = remaining < stillNeeded;
-    $('question-panel').innerHTML=`
-      <div class="card card-${qc}" style="margin-bottom:.75rem">
-        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
-          <span class="badge badge-${qc}">${qe} ${q.category}</span>
-          <span style="font-size:.7rem;color:var(--muted)">Karte ${drawIndex+1}/${q.draw_count} · behalte ${q.keep_count}</span>
-        </div>
-        <div style="font-size:.9rem;font-weight:600;line-height:1.4;margin-bottom:1rem;color:var(--dim)">${q.question_text}</div>
-        <div class="input-label" style="margin-bottom:.5rem">Gezogene Karte</div>
-        <div class="offer-card" style="border-color:var(--${catColor(cur.card_category)})">
-          <span class="badge badge-${catColor(cur.card_category)}">${catIcon(cur.card_category)} ${cur.card_category}</span>
-          <div class="offer-name">${cur.card_name}</div>
-          <div class="offer-text">${cur.card_text}</div>
-        </div>
-        <div class="btn-row" style="margin-top:.75rem">
-          <button class="btn btn-orange btn-sm" id="btn-keep">✓ Behalten</button>
-          ${!mustKeep && drawIndex < q.draw_count-1 ? `<button class="btn btn-surface btn-sm" id="btn-skip">Überspringen →</button>` : ''}
-        </div>
-        ${kept.length>0?`<div style="margin-top:.75rem;font-size:.75rem;color:var(--muted)">Behalten: ${kept.map(o=>o.card_name).join(', ')}</div>`:''}
-      </div>`;
-    $('btn-keep').onclick = async () => {
+    const mustKeep = (remaining < (q.keep_count - kept.length));
+    panel.innerHTML =
+      '<div class="card card-' + qc + '" style="margin-bottom:.75rem">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">' +
+      '<span class="badge badge-' + qc + '">' + qe + ' ' + q.category + '</span>' +
+      '<span style="font-size:.7rem;color:var(--muted)">Karte ' + (drawIndex+1) + '/' + q.draw_count + ' · behalte ' + q.keep_count + '</span></div>' +
+      '<div style="font-size:.9rem;font-weight:600;line-height:1.4;margin-bottom:1rem;color:var(--dim)">' + q.question_text + '</div>' +
+      '<div class="input-label" style="margin-bottom:.5rem">Gezogene Karte</div>' +
+      '<div class="offer-card" style="border-color:var(--' + catColor(cur.card_category) + ')">' +
+      '<span class="badge badge-' + catColor(cur.card_category) + '">' + catIcon(cur.card_category) + ' ' + cur.card_category + '</span>' +
+      '<div class="offer-name">' + cur.card_name + '</div>' +
+      '<div class="offer-text">' + cur.card_text + '</div></div>' +
+      '<div class="btn-row" style="margin-top:.75rem">' +
+      '<button class="btn btn-orange btn-sm" id="btn-keep">✓ Behalten</button>' +
+      (!mustKeep && drawIndex < q.draw_count-1 ? '<button class="btn btn-surface btn-sm" id="btn-skip">Überspringen →</button>' : '') +
+      '</div>' +
+      (kept.length > 0 ? '<div style="margin-top:.75rem;font-size:.75rem;color:var(--muted)">Behalten: ' + kept.map(o=>o.card_name).join(', ') + '</div>' : '') +
+      '</div>';
+
+    document.getElementById('btn-keep').onclick = async () => {
       kept.push(cur);
-      await supabase.from('card_offers').update({chosen:true}).eq('id',cur.id);
-      // update bestehende deck row auf 'kept' (bleibt in hand sichtbar)
-      await supabase.from('deck').update({ status: 'hand' })
-        .eq('session_id', session.id)
-        .eq('card_id', cur.card_id)
-        .eq('status', 'offered');
+      await _sb.from('card_offers').update({chosen:true}).eq('id',cur.id);
+      await _sb.from('deck').update({status:'hand'}).eq('session_id',session.id).eq('card_id',cur.card_id).eq('status','offered');
       drawIndex++;
-      if (kept.length >= q.keep_count) {
-        // nicht behaltene offered cards → discarded
-        await discardRemaining();
-        drawIndex = q.draw_count;
-      }
+      if (kept.length >= q.keep_count) { await discardRemaining(); drawIndex = q.draw_count; }
       renderQuestion();
     };
-    $('btn-skip')?.addEventListener('click', async () => {
-      // diese karte überspringen → discarded
-      await supabase.from('deck').update({ status: 'discarded', played_at: new Date().toISOString() })
-        .eq('session_id', session.id)
-        .eq('card_id', cur.card_id)
-        .eq('status', 'offered');
+    const skipBtn = document.getElementById('btn-skip');
+    if (skipBtn) skipBtn.onclick = async () => {
+      await _sb.from('deck').update({status:'discarded',played_at:new Date().toISOString()}).eq('session_id',session.id).eq('card_id',cur.card_id).eq('status','offered');
       drawIndex++;
-      // wenn letzter draw → alle restlichen offered auch discard
       if (drawIndex >= q.draw_count) await discardRemaining();
       renderQuestion();
-    });
+    };
     return;
   }
 
-  // PHASE 2: karten fertig → frage beantworten
   if (q.status === 'pending' && drawIndex >= q.draw_count) {
     const hasVeto = hand.some(c=>c.card_category==='veto');
-    $('question-panel').innerHTML=`
-      <div class="card card-${qc}" style="margin-bottom:.75rem">
-        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
-          <span class="badge badge-${qc}">${qe} ${q.category}</span>
-          <span class="badge badge-green">✓ ${kept.length} Karte${kept.length!==1?'n':''} gezogen</span>
-        </div>
-        <div style="font-size:.95rem;font-weight:600;line-height:1.4;margin-bottom:1rem">${q.question_text}</div>
-        <div class="input-label" style="margin-bottom:.5rem">Antwort</div>
-        ${q.category==='yellow'?`
-          <input type="file" id="photo-inp" accept="image/*" capture="environment" style="display:none">
-          <button class="btn btn-surface btn-sm" id="btn-photo" style="width:auto">📷 Foto hochladen</button>
-          <div id="photo-prev" style="margin-top:.5rem"></div>
-        `:`
-          <div class="btn-row">
-            <button class="btn btn-green btn-sm" id="btn-yes">✓ Ja</button>
-            <button class="btn btn-red btn-sm" id="btn-no">✗ Nein</button>
-          </div>`}
-        ${hasVeto?`<button class="btn btn-surface btn-sm" id="btn-veto" style="margin-top:.5rem;width:auto">🛡️ Veto spielen</button>`:''}
-      </div>`;
-    $('btn-yes')?.addEventListener('click',  ()=>answerQ(true));
-    $('btn-no')?.addEventListener('click',   ()=>answerQ(false));
-    $('btn-photo')?.addEventListener('click',()=>$('photo-inp')?.click());
-    $('photo-inp')?.addEventListener('change', async e=>{
+    panel.innerHTML =
+      '<div class="card card-' + qc + '" style="margin-bottom:.75rem">' +
+      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">' +
+      '<span class="badge badge-' + qc + '">' + qe + ' ' + q.category + '</span>' +
+      '<span class="badge badge-green">✓ ' + kept.length + ' Karte' + (kept.length!==1?'n':'') + ' gezogen</span></div>' +
+      '<div style="font-size:.95rem;font-weight:600;line-height:1.4;margin-bottom:1rem">' + q.question_text + '</div>' +
+      '<div class="input-label" style="margin-bottom:.5rem">Antwort</div>' +
+      (q.category==='yellow' ?
+        '<input type="file" id="photo-inp" accept="image/*" capture="environment" style="display:none">' +
+        '<button class="btn btn-surface btn-sm" id="btn-photo" style="width:auto">📷 Foto hochladen</button>' +
+        '<div id="photo-prev" style="margin-top:.5rem"></div>'
+        :
+        '<div class="btn-row"><button class="btn btn-green btn-sm" id="btn-yes">✓ Ja</button><button class="btn btn-red btn-sm" id="btn-no">✗ Nein</button></div>'
+      ) +
+      (hasVeto ? '<button class="btn btn-surface btn-sm" id="btn-veto" style="margin-top:.5rem;width:auto">🛡️ Veto spielen</button>' : '') +
+      '</div>';
+
+    const el_yes = document.getElementById('btn-yes');
+    const el_no = document.getElementById('btn-no');
+    if (el_yes) el_yes.onclick = () => answerQ(true);
+    if (el_no) el_no.onclick = () => answerQ(false);
+
+    const photoBtn = document.getElementById('btn-photo');
+    const photoInp = document.getElementById('photo-inp');
+    if (photoBtn) photoBtn.onclick = () => photoInp?.click();
+    if (photoInp) photoInp.onchange = async e => {
       const file = e.target.files[0]; if (!file) return;
-      const btn = $('btn-photo');
-      btn.disabled=true; btn.textContent='📤 Hochladen...';
+      photoBtn.disabled=true; photoBtn.textContent='📤 Hochladen...';
       try {
         const ext = file.name.split('.').pop() || 'jpg';
         const path = session.id+'/'+Date.now()+'.'+ext;
-        const {error:ue} = await supabase.storage.from('jltg-photos').upload(path, file, {contentType:file.type});
+        const {error:ue} = await _sb.storage.from('jltg-photos').upload(path, file, {contentType:file.type});
         if (ue) throw ue;
-        const {data:u} = supabase.storage.from('jltg-photos').getPublicUrl(path);
-        $('photo-prev').innerHTML=`<img src="${u.publicUrl}" style="max-width:100%;border-radius:8px;margin-top:.5rem">`;
+        const {data:u} = _sb.storage.from('jltg-photos').getPublicUrl(path);
+        document.getElementById('photo-prev').innerHTML = '<img src="'+u.publicUrl+'" style="max-width:100%;border-radius:8px;margin-top:.5rem">';
         await answerQ(true, u.publicUrl);
         showToast('📸 Foto gesendet!');
-      } catch(err){ showToast('Upload fehler: '+err.message); btn.disabled=false; btn.textContent='📷 Foto hochladen'; }
-    });
-    $('btn-veto')?.addEventListener('click', async ()=>{
+      } catch(err){ showToast('Upload fehler: '+err.message); photoBtn.disabled=false; photoBtn.textContent='📷 Foto hochladen'; }
+    };
+
+    const vetoBtn = document.getElementById('btn-veto');
+    if (vetoBtn) vetoBtn.onclick = async () => {
       if (!confirm('Veto spielen? Eine Veto-Karte wird verbraucht.')) return;
       const vc = hand.find(c=>c.card_category==='veto');
       if (!vc) { showToast('Kein Veto im Deck!'); return; }
-      await supabase.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',vc.id);
-      await supabase.from('questions').update({status:'vetoed'}).eq('id',q.id);
+      await _sb.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',vc.id);
+      await _sb.from('questions').update({status:'vetoed'}).eq('id',q.id);
       drawIndex=0; kept=[];
-    });
+    };
     return;
   }
 
   if (q.status==='answered') {
-    $('question-panel').innerHTML=`
-      <div class="card ${q.answer?'card-green':'card-red'}" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
-        <div style="font-size:1.4rem;font-weight:700">${q.answer?'✅ Ja':'❌ Nein'}</div>
-        ${q.photo_url?`<img src="${q.photo_url}" style="max-width:100%;border-radius:8px;margin-top:.75rem">`:''}
-        <div style="font-size:.75rem;color:var(--muted);margin-top:.5rem">Beantwortet</div>
-      </div>`; return;
+    panel.innerHTML = '<div class="card ' + (q.answer?'card-green':'card-red') + '" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">' +
+      '<div style="font-size:1.4rem;font-weight:700">' + (q.answer?'✅ Ja':'❌ Nein') + '</div>' +
+      (q.photo_url ? '<img src="'+q.photo_url+'" style="max-width:100%;border-radius:8px;margin-top:.75rem">' : '') +
+      '<div style="font-size:.75rem;color:var(--muted);margin-top:.5rem">Beantwortet</div></div>';
+    return;
   }
   if (q.status==='vetoed') {
-    $('question-panel').innerHTML=`
-      <div class="card card-purple" style="margin-bottom:.75rem;text-align:center;padding:1.25rem">
-        <div style="font-size:1.4rem">🛡️ Veto!</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem">Frage geblockt</div>
-      </div>`; return;
+    panel.innerHTML = '<div class="card card-purple" style="margin-bottom:.75rem;text-align:center;padding:1.25rem"><div style="font-size:1.4rem">🛡️ Veto!</div><div style="font-size:.75rem;color:var(--muted);margin-top:.4rem">Frage geblockt</div></div>';
+    return;
   }
-  $('question-panel').innerHTML='';
+  panel.innerHTML = '';
 }
 
 async function answerQ(val, photoUrl=null) {
-  await supabase.from('questions')
-    .update({status:'answered', answer:val, photo_url:photoUrl})
-    .eq('id', question.id);
+  await _sb.from('questions').update({status:'answered', answer:val, photo_url:photoUrl}).eq('id', question.id);
   drawIndex=0; kept=[];
 }
 
-// ── CARD MODAL ─────────────────────────────────────────────────────
 function openCardModal(deckId) {
   const c = hand.find(x=>x.id===deckId); if (!c) return;
-  $('card-modal-body').innerHTML=`
-    <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
-      <span style="font-size:1.5rem">${catIcon(c.card_category)}</span>
-      <div>
-        <div style="font-weight:700">${c.card_name}</div>
-        <span class="badge badge-${catColor(c.card_category)}">${c.card_category}</span>
-      </div>
-    </div>
-    <div style="font-size:.9rem;line-height:1.6;margin-bottom:1rem;color:var(--dim)">${c.card_text}</div>
-    <div class="btn-row">
-      <button class="btn btn-orange" id="modal-play">🃏 Spielen</button>
-      <button class="btn btn-ghost"  id="modal-close">Schließen</button>
-    </div>`;
-  $('card-modal').classList.add('open');
-  $('modal-play').onclick = async ()=>{
-    $('card-modal').classList.remove('open');
-    await supabase.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',deckId);
+  document.getElementById('card-modal-body').innerHTML =
+    '<div class="modal-handle"></div>' +
+    '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">' +
+    '<span style="font-size:1.5rem">' + catIcon(c.card_category) + '</span>' +
+    '<div><div style="font-weight:700">' + c.card_name + '</div>' +
+    '<span class="badge badge-' + catColor(c.card_category) + '">' + c.card_category + '</span></div></div>' +
+    '<div style="font-size:.9rem;line-height:1.6;margin-bottom:1rem;color:var(--dim)">' + c.card_text + '</div>' +
+    '<div class="btn-row">' +
+    '<button class="btn btn-orange" id="modal-play">🃏 Spielen</button>' +
+    '<button class="btn btn-ghost" id="modal-close">Schließen</button></div>';
+  document.getElementById('card-modal').classList.add('open');
+  document.getElementById('modal-play').onclick = async () => {
+    document.getElementById('card-modal').classList.remove('open');
+    await _sb.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',deckId);
     showToast('🃏 '+c.card_name+' gespielt!');
   };
-  $('modal-close').onclick = ()=>$('card-modal').classList.remove('open');
+  document.getElementById('modal-close').onclick = () => document.getElementById('card-modal').classList.remove('open');
 }
-$('card-modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) e.currentTarget.classList.remove('open'); });
+document.getElementById('card-modal').addEventListener('click', e => { if(e.target===e.currentTarget) e.currentTarget.classList.remove('open'); });
 
-// ── END GAME ───────────────────────────────────────────────────────
 async function endGame() {
   clearInterval(timerInterval);
   const bonusMin = hand.filter(c=>c.card_category==='timebonus').reduce((s,c)=>s+(c.card_value||0),0);
-  await supabase.from('sessions').update({
-    status:'ended', time_ended:new Date().toISOString(), bonus_time_min:bonusMin
-  }).eq('id', session.id);
+  await _sb.from('sessions').update({status:'ended', time_ended:new Date().toISOString(), bonus_time_min:bonusMin}).eq('id', session.id);
   location.href = '/end/'+code;
 }
-$('btn-end').onclick = ()=>{ if(confirm('Spiel wirklich beenden?')) endGame(); };
+document.getElementById('btn-end').onclick = () => { if(confirm('Spiel wirklich beenden?')) endGame(); };
 
-// ── REALTIME ───────────────────────────────────────────────────────
 function subscribe() {
-  supabase.channel('hider:'+session.id)
+  _sb.channel('hider:'+session.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'session_id=eq.'+session.id}, ()=>loadQuestion())
-    .on('postgres_changes',{event:'*',schema:'public',table:'deck',     filter:'session_id=eq.'+session.id}, ()=>loadHand())
+    .on('postgres_changes',{event:'*',schema:'public',table:'deck',filter:'session_id=eq.'+session.id}, ()=>loadHand())
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+session.id},
-      p=>{
-        const prev = session.status;
-        session = p.new;
-        if (p.new.status==='ended') { location.href='/end/'+code; return; }
-        if (prev==='hiding' && p.new.status==='running') {
-          renderPhaseBanner(); startTimer(); loadQuestion();
-        }
+      p=>{ const prev=session.status; session=p.new;
+        if(p.new.status==='ended'){location.href='/end/'+code; return;}
+        if(prev==='hiding'&&p.new.status==='running'){renderPhaseBanner();startTimer();loadQuestion();}
       })
     .subscribe();
 }
-
 init();
 
 </script>

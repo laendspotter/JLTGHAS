@@ -9,7 +9,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+.station-wrap{position:relative;margin-bottom:.5rem}
+.station-drop{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--s2);border:1.5px solid var(--orange);border-top:none;border-radius:0 0 var(--r) var(--r);max-height:200px;overflow-y:auto;display:none}
+.station-drop.open{display:block}
+.station-opt{padding:.6rem 1rem;font-size:.88rem;cursor:pointer;border-bottom:1px solid var(--border)}
+.station-opt:hover{background:var(--s3);color:var(--orange)}
+</style>
+<style>700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 :root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -95,19 +101,19 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 .pulsing{animation:pulse 1.5s ease infinite}
 .bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
 .mono{font-family:'Space Mono',monospace}
-@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}
-  </style>
+@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}</style>
 </head>
 <body>
 <div id="toast"></div>
+
 <div class="topbar">
-  <span class="topbar-title bebas">Lobby</span>
-  <span class="topbar-sub mono" id="code-top"></span>
+  <span class="topbar-title" style="font-family:'Bebas Neue',sans-serif">Lobby</span>
+  <span style="font-size:.7rem;color:var(--muted);font-family:'Space Mono',monospace;margin-left:auto" id="code-top"></span>
 </div>
 <div class="scroll-area">
-  <div class="room-code-display" id="copy-code">
-    <div class="room-code-label">Room Code</div>
-    <div class="room-code bebas" id="code-big"></div>
+  <div style="text-align:center;padding:2rem 1rem;background:var(--s2);border:1px solid var(--border);border-radius:14px;margin-bottom:1rem;cursor:pointer" id="copy-code">
+    <div style="font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Room Code</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:4rem;letter-spacing:.25em;color:var(--orange);line-height:1" id="code-big"></div>
     <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Tippen zum Kopieren</div>
   </div>
   <div class="input-label" style="margin-bottom:.5rem">Spieler</div>
@@ -115,13 +121,15 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
   <div id="setup-area" style="margin-top:1rem"></div>
   <div id="action-area" style="margin-top:.75rem"></div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>// js/shared.js — importiert von allen pages
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/_sb.js"></script>
+<script>
+// js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = window.supabase.createClient(
-  'https://moueclfhpfdqobjprlbb.supabase.co',
+const _sb = window._sb.createClient(
+  'https://moueclfhpfdqobjprlbb._sb.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
 
@@ -189,7 +197,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await supabase.from('players')
+      await _sb.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -607,30 +615,37 @@ const CARDS = [
   {id:249,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine S-Bahn nehmen obwohl eine U-Bahn kürzer wäre.',value:15},
   {id:250,cat:'trap',name:'Endspiel-Falle',     text:'+20 Minuten, wenn Seeker diese Station am Ende nie besucht haben.',value:20},
 ];
-</script>
-<script>
 
-let _searchTO = null;
+
+
+const code = location.pathname.split('/').pop().toUpperCase();
+const playerId = localStorage.getItem('jltg_player_id');
+let session = null, myRole = null, chosenStation = '';
+let searchTimeout = null;
+
 async function searchStations(q) {
+  if (q.length < 2) return [];
   try {
-    const url = 'https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'+Stuttgart&limit=8&lang=de';
+    const url = 'https://photon.komoot.io/api/?q=' + encodeURIComponent(q + ' Stuttgart') + '&limit=8&lang=de&bbox=9.0,48.6,9.4,48.9';
     const res = await fetch(url);
     const data = await res.json();
-    return [...new Set(data.features.map(f => f.properties.name).filter(n => n && n.length > 1))].slice(0,8);
+    return data.features.map(f => f.properties.name).filter(n => n && n.length > 1).filter((v,i,a) => a.indexOf(v)===i).slice(0,8);
   } catch { return []; }
 }
+
 function stationSearch(inputId, dropId, onPick) {
-  const inp = $(inputId), drop = $(dropId);
+  const inp = document.getElementById(inputId), drop = document.getElementById(dropId);
+  if (!inp || !drop) return;
   inp.addEventListener('input', () => {
-    clearTimeout(_searchTO);
+    clearTimeout(searchTimeout);
     const q = inp.value.trim();
-    if (q.length < 2) { drop.classList.remove('open'); return; }
+    if (!q || q.length < 2) { drop.classList.remove('open'); return; }
     drop.innerHTML = '<div class="station-opt" style="color:var(--muted)">⏳ Suche...</div>';
     drop.classList.add('open');
-    _searchTO = setTimeout(async () => {
+    searchTimeout = setTimeout(async () => {
       const hits = await searchStations(q);
       if (!hits.length) { drop.innerHTML = '<div class="station-opt" style="color:var(--muted)">Keine Ergebnisse</div>'; return; }
-      drop.innerHTML = hits.map(s => '<div class="station-opt" data-s="'+s+'">'+s+'</div>').join('');
+      drop.innerHTML = hits.map(s => '<div class="station-opt" data-s="' + s + '">' + s + '</div>').join('');
     }, 300);
   });
   drop.addEventListener('click', e => {
@@ -642,111 +657,77 @@ function stationSearch(inputId, dropId, onPick) {
   });
 }
 
-
-const code = location.pathname.split('/').pop().toUpperCase();
-const playerId = localStorage.getItem('jltg_player_id');
-let session = null, myRole = null, chosenStation = '';
-
 async function init() {
-  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+  const { data: s } = await _sb.from('sessions').select('*').eq('room_code', code).single();
   if (!s) { location.href = '/'; return; }
   session = s;
-  $('code-top').textContent = code;
-  $('code-big').textContent = code;
+  document.getElementById('code-top').textContent = code;
+  document.getElementById('code-big').textContent = code;
   if (s.status === 'hiding' || s.status === 'running') { redirectToGame(); return; }
   if (s.status === 'ended') { location.href = '/end/' + code; return; }
   await loadPlayers();
   subscribe();
 }
 
-
-
 async function loadPlayers() {
-  const { data: players } = await supabase.from('players').select('*').eq('session_id', session.id).order('created_at');
+  const { data: players } = await _sb.from('players').select('*').eq('session_id', session.id).order('created_at');
   const me = players?.find(p => p.id === playerId);
   myRole = me?.role || 'seeker';
-
-  $('player-list').innerHTML = (players||[]).map(p => `
-    <div class="player-item">
-      <div class="player-avatar" style="background:${p.role==='hider'?'rgba(255,95,31,.2)':'rgba(79,142,247,.2)'}">
-        ${p.role==='hider'?'🕵️':'🔍'}
-      </div>
-      <div>
-        <div style="font-weight:700;font-size:.9rem">${p.name}${p.id===playerId?' (du)':''}</div>
-        <span class="badge ${p.role==='hider'?'badge-orange':'badge-blue'}">${p.role==='hider'?'Hider':'Seeker'}</span>
-      </div>
-    </div>`).join('');
+  document.getElementById('player-list').innerHTML = (players||[]).map(p =>
+    '<div class="player-item">' +
+    '<div class="player-avatar" style="background:' + (p.role==='hider'?'rgba(255,95,31,.2)':'rgba(79,142,247,.2)') + '">' + (p.role==='hider'?'🕵️':'🔍') + '</div>' +
+    '<div><div style="font-weight:700;font-size:.9rem">' + p.name + (p.id===playerId?' (du)':'') + '</div>' +
+    '<span class="badge ' + (p.role==='hider'?'badge-orange':'badge-blue') + '">' + (p.role==='hider'?'Hider':'Seeker') + '</span></div></div>'
+  ).join('');
 
   const seekers = players?.filter(p => p.role==='seeker') || [];
-  const hider   = players?.find(p => p.role==='hider');
+  const hider = players?.find(p => p.role==='hider');
 
   if (myRole === 'hider') {
     if (seekers.length === 0) {
-      $('setup-area').innerHTML = `
-        <div class="card card-blue" style="text-align:center;padding:1.25rem">
-          <div style="font-size:1.2rem;margin-bottom:.25rem">⏳</div>
-          <div style="font-weight:600">Warte auf Seeker...</div>
-        </div>`;
-      $('action-area').innerHTML = '';
+      document.getElementById('setup-area').innerHTML = '<div class="card card-blue" style="text-align:center;padding:1.25rem"><div style="font-size:1.2rem;margin-bottom:.25rem">⏳</div><div style="font-weight:600">Warte auf Seeker...</div></div>';
+      document.getElementById('action-area').innerHTML = '';
     } else {
-      $('setup-area').innerHTML = `
-        <div class="card" style="margin-bottom:.75rem">
-          <div class="input-label" style="margin-bottom:.5rem">🎯 Deine Zielstation</div>
-          <div class="station-wrap">
-            <input class="input" id="target-inp" placeholder="Station suchen..." autocomplete="off" value="${session.target_station||''}">
-            <div class="station-drop" id="target-drop"></div>
-          </div>
-          <div style="font-size:.72rem;color:var(--muted)">Wo du dich versteckst — Seeker sehen das nicht.</div>
-        </div>
-        <div class="card">
-          <div style="font-size:.75rem;color:var(--muted);margin-bottom:.2rem">Hiding-Zeit</div>
-          <div style="font-size:1.1rem;font-weight:700">${session.hiding_duration_min} Minuten Reisezeit</div>
-        </div>`;
+      document.getElementById('setup-area').innerHTML =
+        '<div class="card" style="margin-bottom:.75rem">' +
+        '<div class="input-label" style="margin-bottom:.5rem">🎯 Deine Zielstation</div>' +
+        '<div class="station-wrap"><input class="input" id="target-inp" placeholder="Station suchen..." autocomplete="off" value="' + (session.target_station||'') + '"><div class="station-drop" id="target-drop"></div></div>' +
+        '<div style="font-size:.72rem;color:var(--muted)">Wo du dich versteckst — Seeker sehen das nicht.</div></div>' +
+        '<div class="card"><div style="font-size:.75rem;color:var(--muted);margin-bottom:.2rem">Hiding-Zeit</div><div style="font-size:1.1rem;font-weight:700">' + session.hiding_duration_min + ' Minuten</div></div>';
       chosenStation = session.target_station || '';
       setTimeout(() => stationSearch('target-inp', 'target-drop', v => { chosenStation = v; }), 0);
-      $('action-area').innerHTML = `<button class="btn btn-green" id="btn-start">🚀 Spiel starten</button>`;
-      $('btn-start').onclick = startGame;
+      document.getElementById('action-area').innerHTML = '<button class="btn btn-green" id="btn-start">🚀 Spiel starten</button>';
+      document.getElementById('btn-start').onclick = startGame;
     }
   } else {
-    // seeker view
-    $('setup-area').innerHTML = `
-      <div class="card" style="margin-bottom:.75rem">
-        <div class="input-label" style="margin-bottom:.5rem">📍 Euer Startpunkt</div>
-        <div class="station-wrap">
-          <input class="input" id="start-inp" placeholder="Startstation suchen..." autocomplete="off" value="${session.start_station||''}">
-          <div class="station-drop" id="start-drop"></div>
-        </div>
-      </div>`;
+    document.getElementById('setup-area').innerHTML =
+      '<div class="card" style="margin-bottom:.75rem">' +
+      '<div class="input-label" style="margin-bottom:.5rem">📍 Euer Startpunkt</div>' +
+      '<div class="station-wrap"><input class="input" id="start-inp" placeholder="Startstation suchen..." autocomplete="off" value="' + (session.start_station||'') + '"><div class="station-drop" id="start-drop"></div></div></div>';
     setTimeout(() => stationSearch('start-inp', 'start-drop', async v => {
-      await supabase.from('sessions').update({ start_station: v }).eq('id', session.id);
+      await _sb.from('sessions').update({ start_station: v }).eq('id', session.id);
     }), 0);
-    $('action-area').innerHTML = hider
-      ? `<div class="card card-blue" style="text-align:center;padding:1.25rem">
-          <div style="font-size:1.2rem;margin-bottom:.25rem">⏳</div>
-          <div style="font-weight:600">Warten auf Hider-Start...</div>
-          <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">Hiding-Zeit: ${session.hiding_duration_min} Minuten</div>
-        </div>`
-      : `<div class="card" style="text-align:center;padding:1.25rem;color:var(--muted)">Warte auf Hider...</div>`;
+    document.getElementById('action-area').innerHTML = hider
+      ? '<div class="card card-blue" style="text-align:center;padding:1.25rem"><div style="font-size:1.2rem;margin-bottom:.25rem">⏳</div><div style="font-weight:600">Warten auf Hider-Start...</div><div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">Hiding-Zeit: ' + session.hiding_duration_min + ' min</div></div>'
+      : '<div class="card" style="text-align:center;padding:1.25rem;color:var(--muted)">Warte auf Hider...</div>';
   }
 }
 
 async function startGame() {
-  const inp = $('target-inp');
+  const inp = document.getElementById('target-inp');
   if (inp && inp.value.trim()) chosenStation = inp.value.trim();
   if (!chosenStation) { showToast('Bitte Zielstation eingeben!'); return; }
-  const btn = $('btn-start');
+  const btn = document.getElementById('btn-start');
   btn.disabled = true; btn.textContent = '🚀 Starte...';
-  // seed deck
   const shuffled = [...CARDS].sort(() => Math.random() - .5);
-  const { error } = await supabase.from('deck').insert(shuffled.map((c, i) => ({
+  const { error } = await _sb.from('deck').insert(shuffled.map((c, i) => ({
     session_id: session.id, card_id: c.id, card_category: c.cat,
     card_name: c.name, card_text: c.text, card_value: c.value || null,
     status: 'hand', draw_order: i
   })));
   if (error) { showToast('Deck-Fehler: ' + error.message); btn.disabled=false; btn.textContent='🚀 Spiel starten'; return; }
-  await supabase.from('sessions').update({
-    target_station: chosenStation,
-    status: 'hiding',
+  await _sb.from('sessions').update({
+    target_station: chosenStation, status: 'hiding',
     time_hiding_started: new Date().toISOString()
   }).eq('id', session.id);
 }
@@ -756,7 +737,7 @@ function redirectToGame() {
 }
 
 function subscribe() {
-  supabase.channel('lobby:' + session.id)
+  _sb.channel('lobby:' + session.id)
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'sessions', filter:'id=eq.'+session.id },
       p => { session = p.new; if (p.new.status==='hiding'||p.new.status==='running') redirectToGame(); })
     .on('postgres_changes', { event:'*', schema:'public', table:'players', filter:'session_id=eq.'+session.id },
@@ -764,7 +745,7 @@ function subscribe() {
     .subscribe();
 }
 
-$('copy-code').onclick = () => { navigator.clipboard.writeText(code); showToast('Code kopiert! 📋'); };
+document.getElementById('copy-code').onclick = () => { navigator.clipboard.writeText(code); showToast('Code kopiert! 📋'); };
 init();
 
 </script>

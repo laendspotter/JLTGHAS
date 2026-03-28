@@ -8,8 +8,8 @@
 <title>JLTG — Ende</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+<style>700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 :root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -95,24 +95,26 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 .pulsing{animation:pulse 1.5s ease infinite}
 .bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
 .mono{font-family:'Space Mono',monospace}
-@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}
-  </style>
+@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}</style>
 </head>
 <body>
 <div id="toast"></div>
+
 <div class="scroll-area" style="padding-top:3rem;text-align:center">
   <div id="end-content" style="max-width:360px;margin:0 auto">
     <div style="font-size:3rem;margin-bottom:1rem">⏳</div>
     <div style="font-size:1.5rem;font-weight:700">Lade...</div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>// js/shared.js — importiert von allen pages
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/_sb.js"></script>
+<script>
+// js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = window.supabase.createClient(
-  'https://moueclfhpfdqobjprlbb.supabase.co',
+const _sb = window._sb.createClient(
+  'https://moueclfhpfdqobjprlbb._sb.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
 
@@ -180,7 +182,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await supabase.from('players')
+      await _sb.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -598,18 +600,15 @@ const CARDS = [
   {id:249,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine S-Bahn nehmen obwohl eine U-Bahn kürzer wäre.',value:15},
   {id:250,cat:'trap',name:'Endspiel-Falle',     text:'+20 Minuten, wenn Seeker diese Station am Ende nie besucht haben.',value:20},
 ];
-</script>
-<script>
+
 
 
 const code = location.pathname.split('/').pop().toUpperCase();
-
 async function init() {
-  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+  const { data: s } = await _sb.from('sessions').select('*').eq('room_code', code).single();
   if (!s) { location.href='/'; return; }
   if (s.status !== 'ended') {
-    // warte auf ended
-    supabase.channel('end:'+s.id)
+    _sb.channel('end:'+s.id)
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+s.id},
         p=>{ if(p.new.status==='ended') render(p.new); })
       .subscribe();
@@ -617,50 +616,25 @@ async function init() {
   }
   render(s);
 }
-
 function render(s) {
-  const bonus  = s.bonus_time_min || 0;
-  const dur    = s.hiding_duration_min || 0;
-  const start  = s.time_hiding_started ? new Date(s.time_hiding_started) : null;
-  const end    = s.time_ended ? new Date(s.time_ended) : null;
-  const actualMin = start && end ? Math.round((end-start)/60000) : dur;
-
-  $('end-content').innerHTML=`
-    <div style="font-size:3.5rem;margin-bottom:1rem">🏁</div>
-    <div class="bebas" style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;margin-bottom:.25rem">Spiel beendet!</div>
-    <div style="color:var(--muted);font-size:.8rem;font-family:'Space Mono',monospace;margin-bottom:2rem">Room: ${s.room_code}</div>
-
-    <div class="card" style="text-align:left;margin-bottom:.75rem">
-      <div class="input-label" style="margin-bottom:.5rem">Ergebnis</div>
-      ${s.target_station?`
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--muted)">Zielstation</span>
-        <span style="font-weight:700">${s.target_station}</span>
-      </div>`:'' }
-      ${s.start_station?`
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--muted)">Startpunkt</span>
-        <span style="font-weight:700">${s.start_station}</span>
-      </div>`:'' }
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--muted)">Spielzeit gesamt</span>
-        <span style="font-weight:700">${actualMin} min</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--muted)">Timebonus aus Deck</span>
-        <span style="font-weight:700;color:var(--green2)">+${bonus} min</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:.5rem 0">
-        <span style="font-weight:700;font-size:1rem">Gesamt</span>
-        <span style="font-weight:800;font-size:1.2rem;color:var(--orange)">${actualMin+bonus} min</span>
-      </div>
-    </div>
-
-    ${bonus>0?`<div style="margin-bottom:2rem;color:var(--muted);font-size:.8rem">🎉 Der Hider hat durch ungespielte Timebonus-Karten ${bonus} Minuten extra gesammelt!</div>`:'<div style="margin-bottom:2rem"></div>'}
-    <button class="btn btn-orange" onclick="location.href='/'">🔄 Neues Spiel</button>
-  `;
+  const bonus = s.bonus_time_min || 0;
+  const start = s.time_hiding_started ? new Date(s.time_hiding_started) : null;
+  const end   = s.time_ended ? new Date(s.time_ended) : null;
+  const actualMin = start && end ? Math.round((end-start)/60000) : s.hiding_duration_min || 0;
+  document.getElementById('end-content').innerHTML =
+    '<div style="font-size:3.5rem;margin-bottom:1rem">🏁</div>' +
+    '<div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;margin-bottom:.25rem">Spiel beendet!</div>' +
+    '<div style="color:var(--muted);font-size:.8rem;font-family:'Space Mono',monospace;margin-bottom:2rem">Room: '+s.room_code+'</div>' +
+    '<div class="card" style="text-align:left;margin-bottom:.75rem">' +
+    '<div class="input-label" style="margin-bottom:.5rem">Ergebnis</div>' +
+    (s.target_station?'<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted)">Zielstation</span><span style="font-weight:700">'+s.target_station+'</span></div>':'') +
+    (s.start_station?'<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted)">Startpunkt</span><span style="font-weight:700">'+s.start_station+'</span></div>':'') +
+    '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted)">Spielzeit</span><span style="font-weight:700">'+actualMin+' min</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted)">Timebonus Deck</span><span style="font-weight:700;color:var(--green2)">+'+bonus+' min</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:.5rem 0"><span style="font-weight:700;font-size:1rem">Gesamt</span><span style="font-weight:800;font-size:1.2rem;color:var(--orange)">'+(actualMin+bonus)+' min</span></div></div>' +
+    (bonus>0?'<div style="margin-bottom:2rem;color:var(--muted);font-size:.8rem">🎉 '+bonus+' Minuten Timebonus durch ungespielte Karten!</div>':'<div style="margin-bottom:2rem"></div>') +
+    '<button class="btn btn-orange" onclick="location.href='/'">🔄 Neues Spiel</button>';
 }
-
 init();
 
 </script>

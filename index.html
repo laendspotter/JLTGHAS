@@ -8,8 +8,8 @@
 <title>JLTG Stuttgart</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+<style>700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 :root{--bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#222230;--border:#2e2e40;--text:#f2f2fa;--muted:#5a5a72;--dim:#9898b0;--orange:#ff5f1f;--orange2:#ff8c5a;--blue:#4f8ef7;--red:#f04438;--yellow:#f5c518;--green:#16a34a;--green2:#22c55e;--purple:#9b5de5;--r:14px;--r-sm:8px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
@@ -95,8 +95,7 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 .pulsing{animation:pulse 1.5s ease infinite}
 .bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
 .mono{font-family:'Space Mono',monospace}
-@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}
-  </style>
+@media(min-width:600px){.topbar,.scroll-area{max-width:480px;margin-left:auto;margin-right:auto;width:100%}.topbar{border-left:1px solid var(--border);border-right:1px solid var(--border)}.modal{max-width:480px}}</style>
 </head>
 <body>
 <div id="toast"></div>
@@ -116,7 +115,7 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 <div id="pg-create" style="display:none;flex-direction:column;min-height:100dvh;background:var(--bg)">
   <div class="topbar">
     <button class="back-btn" id="back-create">←</button>
-    <span class="topbar-title bebas">Spiel erstellen</span>
+    <span class="topbar-title" style="font-family:'Bebas Neue',sans-serif;letter-spacing:.05em">Spiel erstellen</span>
   </div>
   <div class="scroll-area">
     <div class="input-group">
@@ -138,7 +137,7 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 <div id="pg-join" style="display:none;flex-direction:column;min-height:100dvh;background:var(--bg)">
   <div class="topbar">
     <button class="back-btn" id="back-join">←</button>
-    <span class="topbar-title bebas">Beitreten</span>
+    <span class="topbar-title" style="font-family:'Bebas Neue',sans-serif;letter-spacing:.05em">Beitreten</span>
   </div>
   <div class="scroll-area">
     <div class="input-group">
@@ -147,7 +146,7 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
     </div>
     <div class="input-group">
       <label class="input-label">Room Code</label>
-      <input class="input mono" id="join-code" placeholder="XXXX" maxlength="4"
+      <input class="input" id="join-code" placeholder="XXXX" maxlength="4"
         style="font-size:1.8rem;letter-spacing:.3em;text-align:center;text-transform:uppercase"
         autocomplete="off" autocapitalize="characters">
     </div>
@@ -155,13 +154,14 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>// js/shared.js — importiert von allen pages
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/_sb.js"></script>
+<script>
+// js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = window.supabase.createClient(
-  'https://moueclfhpfdqobjprlbb.supabase.co',
+const _sb = window._sb.createClient(
+  'https://moueclfhpfdqobjprlbb._sb.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
 
@@ -229,7 +229,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await supabase.from('players')
+      await _sb.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -647,11 +647,16 @@ const CARDS = [
   {id:249,cat:'trap',name:'Falle',              text:'+15 Minuten, wenn Seeker hier eine S-Bahn nehmen obwohl eine U-Bahn kürzer wäre.',value:15},
   {id:250,cat:'trap',name:'Endspiel-Falle',     text:'+20 Minuten, wenn Seeker diese Station am Ende nie besucht haben.',value:20},
 ];
-</script>
-<script>
+
+
+
 const show = id => {
-  ['pg-landing','pg-create','pg-join'].forEach(p => document.getElementById(p).style.display = 'none');
-  document.getElementById(id).style.display = 'flex';
+  ['pg-landing','pg-create','pg-join'].forEach(p => {
+    const el = document.getElementById(p);
+    if (el) el.style.display = 'none';
+  });
+  const target = document.getElementById(id);
+  if (target) target.style.display = 'flex';
 };
 
 document.getElementById('btn-show-create').onclick = () => show('pg-create');
@@ -669,20 +674,24 @@ document.getElementById('btn-create').onclick = async () => {
     let code, exists = true;
     while (exists) {
       code = generateCode();
-      const { data } = await supabase.from('sessions').select('id').eq('room_code', code).maybeSingle();
+      const { data } = await _sb.from('sessions').select('id').eq('room_code', code).maybeSingle();
       exists = !!data;
     }
-    const { data: s, error: se } = await supabase.from('sessions')
+    const { data: s, error: se } = await _sb.from('sessions')
       .insert({ room_code: code, hiding_duration_min: mins, status: 'lobby' })
       .select().single();
     if (se) throw se;
-    const { data: p, error: pe } = await supabase.from('players')
+    const { data: p, error: pe } = await _sb.from('players')
       .insert({ session_id: s.id, name, role: 'hider', client_id: getClientId() })
       .select().single();
     if (pe) throw pe;
     localStorage.setItem('jltg_player_id', p.id);
+    localStorage.setItem('jltg_session_id', s.id);
     location.href = '/lobby/' + code;
-  } catch(e) { showToast('Fehler: ' + e.message); btn.disabled=false; btn.textContent='Room erstellen →'; }
+  } catch(e) {
+    showToast('Fehler: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Room erstellen →';
+  }
 };
 
 document.getElementById('btn-join').onclick = async () => {
@@ -692,17 +701,22 @@ document.getElementById('btn-join').onclick = async () => {
   const btn = document.getElementById('btn-join');
   btn.disabled = true; btn.textContent = 'Suche...';
   try {
-    const { data: s, error } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+    const { data: s, error } = await _sb.from('sessions').select('*').eq('room_code', code).single();
     if (error || !s) throw new Error('Room nicht gefunden.');
     if (s.status === 'ended') throw new Error('Spiel bereits beendet.');
-    const { data: p, error: pe } = await supabase.from('players')
+    const { data: p, error: pe } = await _sb.from('players')
       .insert({ session_id: s.id, name, role: 'seeker', client_id: getClientId() })
       .select().single();
     if (pe) throw pe;
     localStorage.setItem('jltg_player_id', p.id);
+    localStorage.setItem('jltg_session_id', s.id);
     location.href = '/lobby/' + code;
-  } catch(e) { showToast('Fehler: ' + e.message); btn.disabled=false; btn.textContent='Beitreten →'; }
+  } catch(e) {
+    showToast('Fehler: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Beitreten →';
+  }
 };
+
 </script>
 </body>
 </html>

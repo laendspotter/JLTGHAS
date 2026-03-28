@@ -113,7 +113,7 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = window.supabase.createClient(
+const db = window.supabase.createClient(
   'https://moueclfhpfdqobjprlbb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
@@ -182,7 +182,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await supabase.from('players')
+      await db.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -605,10 +605,10 @@ const CARDS = [
 
 const code = location.pathname.split('/').pop().toUpperCase();
 async function init() {
-  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+  const { data: s } = await db.from('sessions').select('*').eq('room_code', code).single();
   if (!s) { location.href='/'; return; }
   if (s.status !== 'ended') {
-    supabase.channel('end:'+s.id)
+    db.channel('end:'+s.id)
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+s.id},
         p=>{ if(p.new.status==='ended') render(p.new); })
       .subscribe();

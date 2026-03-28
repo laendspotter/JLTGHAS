@@ -118,7 +118,7 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const supabase = window.supabase.createClient(
+const db = window.supabase.createClient(
   'https://moueclfhpfdqobjprlbb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
@@ -187,7 +187,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await supabase.from('players')
+      await db.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -613,12 +613,12 @@ const playerId = localStorage.getItem('jltg_player_id');
 let session = null, question = null, timerInterval = null;
 
 async function init() {
-  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
+  const { data: s } = await db.from('sessions').select('*').eq('room_code', code).single();
   if (!s) { location.href='/'; return; }
   if (s.status==='ended') { location.href='/end/'+code; return; }
   if (s.status==='lobby') { location.href='/lobby/'+code; return; }
   session = s;
-  const { data: me } = await supabase.from('players').select('role').eq('id', playerId).single();
+  const { data: me } = await db.from('players').select('role').eq('id', playerId).single();
   if (me?.role==='hider') { location.href='/hider/'+code; return; }
   await Promise.all([loadQuestion(), loadPlayers()]);
   renderPhaseBanner();
@@ -661,7 +661,7 @@ function renderPhaseBanner() {
 }
 
 async function loadQuestion() {
-  const { data } = await supabase.from('questions').select('*')
+  const { data } = await db.from('questions').select('*')
     .eq('session_id', session.id).order('created_at',{ascending:false}).limit(1);
   question = data?.[0] || null;
   renderStatus();
@@ -670,7 +670,7 @@ async function loadQuestion() {
 
 async function loadPlayers() {
   // nur seeker — kein hider GPS!
-  const { data } = await supabase.from('players').select('*')
+  const { data } = await db.from('players').select('*')
     .eq('session_id', session.id).eq('role','seeker').order('created_at');
   renderGPS(data || []);
 }
@@ -758,16 +758,16 @@ function renderAskPanel() {
     const rules = CAT_RULES[cat];
     const btn = document.getElementById('btn-ask');
     btn.disabled=true; btn.textContent='Wird gestellt...';
-    const { data: topCards } = await supabase.from('deck')
+    const { data: topCards } = await db.from('deck')
       .select('*').eq('session_id',session.id).eq('status','hand')
       .order('draw_order',{ascending:true}).limit(rules.draw);
     if (!topCards||topCards.length===0) { showToast('Deck leer! 🃏'); btn.disabled=false; btn.textContent='Frage stellen →'; return; }
-    await supabase.from('deck').update({status:'offered'}).in('id', topCards.map(c=>c.id));
-    const { data: newQ } = await supabase.from('questions').insert({
+    await db.from('deck').update({status:'offered'}).in('id', topCards.map(c=>c.id));
+    const { data: newQ } = await db.from('questions').insert({
       session_id:session.id, category:cat, question_text:qText,
       draw_count:rules.draw, keep_count:rules.keep, status:'pending'
     }).select().single();
-    await supabase.from('card_offers').insert(topCards.map(c=>({
+    await db.from('card_offers').insert(topCards.map(c=>({
       question_id:newQ.id, session_id:session.id,
       card_id:c.card_id, card_category:c.card_category,
       card_name:c.card_name, card_text:c.card_text, card_value:c.card_value
@@ -776,7 +776,7 @@ function renderAskPanel() {
 }
 
 function subscribe() {
-  supabase.channel('seeker:'+session.id)
+  db.channel('seeker:'+session.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'session_id=eq.'+session.id}, ()=>loadQuestion())
     .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'session_id=eq.'+session.id}, ()=>loadPlayers())
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+session.id},

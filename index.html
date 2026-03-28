@@ -154,14 +154,14 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/_sb.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const _sb = window._sb.createClient(
-  'https://moueclfhpfdqobjprlbb._sb.co',
+const supabase = window.supabase.createClient(
+  'https://moueclfhpfdqobjprlbb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
 
@@ -229,7 +229,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await _sb.from('players')
+      await supabase.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -674,14 +674,14 @@ document.getElementById('btn-create').onclick = async () => {
     let code, exists = true;
     while (exists) {
       code = generateCode();
-      const { data } = await _sb.from('sessions').select('id').eq('room_code', code).maybeSingle();
+      const { data } = await supabase.from('sessions').select('id').eq('room_code', code).maybeSingle();
       exists = !!data;
     }
-    const { data: s, error: se } = await _sb.from('sessions')
+    const { data: s, error: se } = await supabase.from('sessions')
       .insert({ room_code: code, hiding_duration_min: mins, status: 'lobby' })
       .select().single();
     if (se) throw se;
-    const { data: p, error: pe } = await _sb.from('players')
+    const { data: p, error: pe } = await supabase.from('players')
       .insert({ session_id: s.id, name, role: 'hider', client_id: getClientId() })
       .select().single();
     if (pe) throw pe;
@@ -701,10 +701,10 @@ document.getElementById('btn-join').onclick = async () => {
   const btn = document.getElementById('btn-join');
   btn.disabled = true; btn.textContent = 'Suche...';
   try {
-    const { data: s, error } = await _sb.from('sessions').select('*').eq('room_code', code).single();
+    const { data: s, error } = await supabase.from('sessions').select('*').eq('room_code', code).single();
     if (error || !s) throw new Error('Room nicht gefunden.');
     if (s.status === 'ended') throw new Error('Spiel bereits beendet.');
-    const { data: p, error: pe } = await _sb.from('players')
+    const { data: p, error: pe } = await supabase.from('players')
       .insert({ session_id: s.id, name, role: 'seeker', client_id: getClientId() })
       .select().single();
     if (pe) throw pe;

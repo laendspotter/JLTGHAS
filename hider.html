@@ -129,14 +129,14 @@ select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg
   <button class="btn btn-red btn-sm" id="btn-end" style="width:auto">⏹ Spiel beenden</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/_sb.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // js/shared.js — importiert von allen pages
 
 
 // ── CONFIG ── replace with your values ──────────────────────────────
-const _sb = window._sb.createClient(
-  'https://moueclfhpfdqobjprlbb._sb.co',
+const supabase = window.supabase.createClient(
+  'https://moueclfhpfdqobjprlbb.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdWVjbGZocGZkcW9ianBybGJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTY4NDAsImV4cCI6MjA5MDAzMjg0MH0.yF_9wkhAaxq8H2DW15CDxbx6xrwg7kbsN5i7_3kHmUk'
 );
 
@@ -204,7 +204,7 @@ function startGPS(playerId) {
   if (!navigator.geolocation) return;
   navigator.geolocation.watchPosition(
     async ({ coords: { latitude: lat, longitude: lng } }) => {
-      await _sb.from('players')
+      await supabase.from('players')
         .update({ lat, lng, location_updated_at: new Date().toISOString() })
         .eq('id', playerId);
     },
@@ -631,12 +631,12 @@ let session = null, hand = [], question = null, offers = [];
 let drawIndex = 0, kept = [], timerInterval = null;
 
 async function init() {
-  const { data: s } = await _sb.from('sessions').select('*').eq('room_code', code).single();
+  const { data: s } = await supabase.from('sessions').select('*').eq('room_code', code).single();
   if (!s) { location.href='/'; return; }
   if (s.status==='ended') { location.href='/end/'+code; return; }
   if (s.status==='lobby') { location.href='/lobby/'+code; return; }
   session = s;
-  const { data: me } = await _sb.from('players').select('role').eq('id', playerId).single();
+  const { data: me } = await supabase.from('players').select('role').eq('id', playerId).single();
   if (me?.role !== 'hider') { location.href='/seeker/'+code; return; }
   await Promise.all([loadHand(), loadQuestion()]);
   renderPhaseBanner();
@@ -676,7 +676,7 @@ function renderPhaseBanner() {
     document.getElementById('btn-arrived').onclick = async () => {
       if (!confirm('Bist du an deiner Zielstation angekommen?')) return;
       clearInterval(timerInterval);
-      await _sb.from('sessions').update({ status:'running', time_game_started: new Date().toISOString() }).eq('id', session.id);
+      await supabase.from('sessions').update({ status:'running', time_game_started: new Date().toISOString() }).eq('id', session.id);
     };
     document.getElementById('question-panel').innerHTML = '';
   } else {
@@ -685,25 +685,25 @@ function renderPhaseBanner() {
 }
 
 async function loadHand() {
-  const { data } = await _sb.from('deck').select('*').eq('session_id', session.id).eq('status','hand').order('draw_order',{ascending:true});
+  const { data } = await supabase.from('deck').select('*').eq('session_id', session.id).eq('status','hand').order('draw_order',{ascending:true});
   hand = data || [];
   renderHand();
 }
 
 async function discardRemaining() {
-  await _sb.from('deck').update({ status:'discarded', played_at: new Date().toISOString() })
+  await supabase.from('deck').update({ status:'discarded', played_at: new Date().toISOString() })
     .eq('session_id', session.id).eq('status','offered');
 }
 
 async function loadQuestion() {
   if (session.status === 'hiding') { document.getElementById('question-panel').innerHTML=''; return; }
-  const { data } = await _sb.from('questions').select('*')
+  const { data } = await supabase.from('questions').select('*')
     .eq('session_id', session.id)
     .not('status','in','("answered","vetoed","cards_drawn")')
     .order('created_at',{ascending:false}).limit(1);
   question = data?.[0] || null;
   if (question?.status === 'pending') {
-    const { data: o } = await _sb.from('card_offers').select('*').eq('question_id', question.id).order('created_at');
+    const { data: o } = await supabase.from('card_offers').select('*').eq('question_id', question.id).order('created_at');
     offers = o || []; drawIndex = 0; kept = [];
   } else { offers = []; drawIndex = 0; kept = []; }
   renderQuestion();
@@ -758,15 +758,15 @@ function renderQuestion() {
 
     document.getElementById('btn-keep').onclick = async () => {
       kept.push(cur);
-      await _sb.from('card_offers').update({chosen:true}).eq('id',cur.id);
-      await _sb.from('deck').update({status:'hand'}).eq('session_id',session.id).eq('card_id',cur.card_id).eq('status','offered');
+      await supabase.from('card_offers').update({chosen:true}).eq('id',cur.id);
+      await supabase.from('deck').update({status:'hand'}).eq('session_id',session.id).eq('card_id',cur.card_id).eq('status','offered');
       drawIndex++;
       if (kept.length >= q.keep_count) { await discardRemaining(); drawIndex = q.draw_count; }
       renderQuestion();
     };
     const skipBtn = document.getElementById('btn-skip');
     if (skipBtn) skipBtn.onclick = async () => {
-      await _sb.from('deck').update({status:'discarded',played_at:new Date().toISOString()}).eq('session_id',session.id).eq('card_id',cur.card_id).eq('status','offered');
+      await supabase.from('deck').update({status:'discarded',played_at:new Date().toISOString()}).eq('session_id',session.id).eq('card_id',cur.card_id).eq('status','offered');
       drawIndex++;
       if (drawIndex >= q.draw_count) await discardRemaining();
       renderQuestion();
@@ -807,9 +807,9 @@ function renderQuestion() {
       try {
         const ext = file.name.split('.').pop() || 'jpg';
         const path = session.id+'/'+Date.now()+'.'+ext;
-        const {error:ue} = await _sb.storage.from('jltg-photos').upload(path, file, {contentType:file.type});
+        const {error:ue} = await supabase.storage.from('jltg-photos').upload(path, file, {contentType:file.type});
         if (ue) throw ue;
-        const {data:u} = _sb.storage.from('jltg-photos').getPublicUrl(path);
+        const {data:u} = supabase.storage.from('jltg-photos').getPublicUrl(path);
         document.getElementById('photo-prev').innerHTML = '<img src="'+u.publicUrl+'" style="max-width:100%;border-radius:8px;margin-top:.5rem">';
         await answerQ(true, u.publicUrl);
         showToast('📸 Foto gesendet!');
@@ -821,8 +821,8 @@ function renderQuestion() {
       if (!confirm('Veto spielen? Eine Veto-Karte wird verbraucht.')) return;
       const vc = hand.find(c=>c.card_category==='veto');
       if (!vc) { showToast('Kein Veto im Deck!'); return; }
-      await _sb.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',vc.id);
-      await _sb.from('questions').update({status:'vetoed'}).eq('id',q.id);
+      await supabase.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',vc.id);
+      await supabase.from('questions').update({status:'vetoed'}).eq('id',q.id);
       drawIndex=0; kept=[];
     };
     return;
@@ -843,7 +843,7 @@ function renderQuestion() {
 }
 
 async function answerQ(val, photoUrl=null) {
-  await _sb.from('questions').update({status:'answered', answer:val, photo_url:photoUrl}).eq('id', question.id);
+  await supabase.from('questions').update({status:'answered', answer:val, photo_url:photoUrl}).eq('id', question.id);
   drawIndex=0; kept=[];
 }
 
@@ -862,7 +862,7 @@ function openCardModal(deckId) {
   document.getElementById('card-modal').classList.add('open');
   document.getElementById('modal-play').onclick = async () => {
     document.getElementById('card-modal').classList.remove('open');
-    await _sb.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',deckId);
+    await supabase.from('deck').update({status:'played',played_at:new Date().toISOString()}).eq('id',deckId);
     showToast('🃏 '+c.card_name+' gespielt!');
   };
   document.getElementById('modal-close').onclick = () => document.getElementById('card-modal').classList.remove('open');
@@ -872,13 +872,13 @@ document.getElementById('card-modal').addEventListener('click', e => { if(e.targ
 async function endGame() {
   clearInterval(timerInterval);
   const bonusMin = hand.filter(c=>c.card_category==='timebonus').reduce((s,c)=>s+(c.card_value||0),0);
-  await _sb.from('sessions').update({status:'ended', time_ended:new Date().toISOString(), bonus_time_min:bonusMin}).eq('id', session.id);
+  await supabase.from('sessions').update({status:'ended', time_ended:new Date().toISOString(), bonus_time_min:bonusMin}).eq('id', session.id);
   location.href = '/end/'+code;
 }
 document.getElementById('btn-end').onclick = () => { if(confirm('Spiel wirklich beenden?')) endGame(); };
 
 function subscribe() {
-  _sb.channel('hider:'+session.id)
+  supabase.channel('hider:'+session.id)
     .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'session_id=eq.'+session.id}, ()=>loadQuestion())
     .on('postgres_changes',{event:'*',schema:'public',table:'deck',filter:'session_id=eq.'+session.id}, ()=>loadHand())
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'sessions',filter:'id=eq.'+session.id},
